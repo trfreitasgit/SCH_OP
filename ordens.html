@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Ordens Pendentes</title>
+</head>
+<body>
+    <h1>Ordens Pendentes</h1>
+
+    <button id="btnCopiar">Copiar OPs para o SAP</button>
+
+    <table border="1" id="tabelaOrdens">
+        <thead>
+            <tr>
+                <th>OP</th>
+                <th>Total de peças</th>
+                <th>Data de abertura</th>
+                <th>Material</th>
+                <th>Situação</th>
+                <th>Observação</th>
+                <th>Setor</th>
+                <th>Prioridade</th>
+                <th>Dia analise</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- as linhas vão ser preenchidas pelo JavaScript -->
+        </tbody>
+    </table>
+
+    <script>
+        var ordensCarregadas = []
+        function formatarData(dataISO) {
+            var partes = dataISO.split('-');
+            var ano = partes [0];
+            var mes = partes [1];
+            var dia = partes [2].substring(0, 2);
+            return dia + '/' + mes + '/' + ano;
+        }
+        
+
+        fetch('http://localhost:3000/ordens/pendentes') //pega a url bruta, sem os dados json
+    .then(function(resposta) {
+        return resposta.json(); // trata para resposta json
+    })
+    .then(function(dados) {
+        ordensCarregadas = dados; // guarda aqui os dados
+        var tabela = document.getElementById('tabelaOrdens'); //guarda uma referência pro elemento table id
+        var corpoTabela = tabela.querySelector('tbody'); //pegamos especificamente o tbody da tabela
+        var html = '';
+        dados.forEach(function(ordem) {
+            html += '<tr><td>' + ordem.numero_op + '</td><td>' + ordem.total_pecas + '</td><td>' + formatarData(ordem.data_abertura) + '</td><td>' + ordem.material + '</td><td>' + ordem.situacao + '</td><td>' + (ordem.observacao || '') + '</td><td>' + ordem.setor + '</td><td>' + ordem.prioridade + '</td><td>' + formatarData(ordem.dia_analise) + '</td></tr>';
+        });
+        corpoTabela.innerHTML = html;
+    });
+
+    document.getElementById('btnCopiar').addEventListener('click', function(){
+        var texto = '';
+        ordensCarregadas.forEach(function(ordem) {
+            texto += ordem.numero_op + '\n';
+        });
+        navigator.clipboard.writeText(texto);
+    });
+    </script>
+</body>
+</html>
