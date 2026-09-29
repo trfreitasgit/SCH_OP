@@ -27,7 +27,85 @@
             <!-- as linhas vão ser preenchidas pelo JavaScript -->
         </tbody>
     </table>
+<hr>
 
+<h2>Cadastrar Ordens em Massa</h2>
+
+<div>
+    <label>Números das OPs (um por linha):</label><br>
+    <textarea id="listaOPs" rows="8" cols="20"></textarea>
+</div>
+
+<div>
+    <label>Total de peças (um por linha, mesma ordem):</label><br>
+    <textarea id="listaPecas" rows="8" cols="20"></textarea>
+</div>
+
+<div>
+    <label>Materiais (um por linha, mesma ordem):</label><br>
+    <textarea id="listaMateriais" rows="8" cols="20"></textarea>
+</div>
+
+<div>
+    <label>Data de abertura:</label>
+    <input type="date" id="dataAberturaLote">
+</div>
+
+<div>
+    <label>Dia de análise:</label>
+    <input type="date" id="diaAnaliseLote">
+</div>
+
+<div>
+    <label>Setor:</label>
+    <select id="setorLote">
+        <option value="Montagem">Montagem</option>
+        <option value="Subconjunto">Subconjunto</option>
+        <option value="Celula">Célula</option>
+        <option value="BCM">BCM</option>
+        <option value="Importada">Importada</option>
+        <option value="Usinagem">Usinagem</option>
+    </select>
+</div>
+
+<div>
+    <label>Situação:</label>
+    <select id="situacaoLote">
+        <option value="Falta Pagar">Falta Pagar</option>
+        <option value="Pago">Pago</option>
+        <option value="Encerrado">Encerrado</option>
+    </select>
+</div>
+
+<div>
+    <label>Prioridade:</label>
+    <select id="prioridadeLote">
+        <option value="">Ainda não definida</option>
+        <option value="Exportacao">Exportação</option>
+        <option value="MWM">MWM</option>
+        <option value="KS">KS</option>
+        <option value="Marelli">Marelli</option>
+        <option value="Pendencia Comercial">Pendência Comercial</option>
+        <option value="Linha Pesada">Linha Pesada</option>
+        <option value="MRP">MRP</option>
+        <option value="Tryout">Tryout</option>
+    </select>
+</div>
+
+<button id="btnGerarPrevia">Gerar Prévia</button>
+
+<table border="1" id="tabelaPrevia">
+    <thead>
+        <tr>
+            <th>OP</th>
+            <th>Total de peças</th>
+            <th>Material</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<button id="btnConfirmarLote" style="display:none;">Confirmar e Cadastrar</button>
     <script>
         var ordensCarregadas = []
         function formatarData(dataISO) {
