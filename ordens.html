@@ -8,19 +8,25 @@
     <h1>Ordens Pendentes</h1>
 
     <button id="btnCopiar">Copiar OPs para o SAP</button>
-
+    <button class="btnSetor" data-setor="Montagem">Montagem</button>
+    <button class="btnSetor" data-setor="Subconjunto">Subconjunto</button>
+    <button class="btnSetor" data-setor="Celula">Célula</button>
+    <button class="btnSetor" data-setor="BCM">BCM</button>
+    <button class="btnSetor" data-setor="Importada">Importada</button>
+    <button class="btnSetor" data-setor="Usinagem">Usinagem</button>
+    <button id="btnTodos">Todos</button>
     <table border="1" id="tabelaOrdens">
         <thead>
             <tr>
-                <th>OP</th>
-                <th>Total de peças</th>
-                <th>Data de abertura</th>
-                <th>Material</th>
-                <th>Situação</th>
-                <th>Observação</th>
-                <th>Setor</th>
-                <th>Prioridade</th>
-                <th>Dia analise</th>
+                <th data-campo="numero_op">OP</th>
+                <th data-campo="total_pecas">Total de peças</th>
+                <th data-campo="data_abertura">Data de abertura</th>
+                <th data-campo="material">Material</th>
+                <th data-campo="situacao">Situação</th>
+                <th data-campo="observacao">Observação</th>
+                <th data-campo="setor">Setor</th>
+                <th data-campo="prioridade">Prioridade</th>
+                <th data-campo="dia_analise">Dia analise</th>
             </tr>
         </thead>
         <tbody>
@@ -105,40 +111,7 @@
     <tbody></tbody>
 </table>
 
-<button id="btnConfirmarLote" style="display:none;">Confirmar e Cadastrar</button>
-    <script>
-        var ordensCarregadas = []
-        function formatarData(dataISO) {
-            var partes = dataISO.split('-');
-            var ano = partes [0];
-            var mes = partes [1];
-            var dia = partes [2].substring(0, 2);
-            return dia + '/' + mes + '/' + ano;
-        }
-        
-
-        fetch('http://localhost:3000/ordens/pendentes') //pega a url bruta, sem os dados json
-    .then(function(resposta) {
-        return resposta.json(); // trata para resposta json
-    })
-    .then(function(dados) {
-        ordensCarregadas = dados; // guarda aqui os dados
-        var tabela = document.getElementById('tabelaOrdens'); //guarda uma referência pro elemento table id
-        var corpoTabela = tabela.querySelector('tbody'); //pegamos especificamente o tbody da tabela
-        var html = '';
-        dados.forEach(function(ordem) {
-            html += '<tr><td>' + ordem.numero_op + '</td><td>' + ordem.total_pecas + '</td><td>' + formatarData(ordem.data_abertura) + '</td><td>' + ordem.material + '</td><td>' + ordem.situacao + '</td><td>' + (ordem.observacao || '') + '</td><td>' + ordem.setor + '</td><td>' + ordem.prioridade + '</td><td>' + formatarData(ordem.dia_analise) + '</td></tr>';
-        });
-        corpoTabela.innerHTML = html;
-    });
-
-    document.getElementById('btnCopiar').addEventListener('click', function(){
-        var texto = '';
-        ordensCarregadas.forEach(function(ordem) {
-            texto += ordem.numero_op + '\n';
-        });
-        navigator.clipboard.writeText(texto);
-    });
-    </script>
+<button id="btnConfirmarLote">Confirmar e Cadastrar</button>
+    <script src = "ordens.js"></script>
 </body>
 </html>
