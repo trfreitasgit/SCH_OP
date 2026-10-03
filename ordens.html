@@ -1,117 +1,544 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html class="dark" lang="pt-BR">
+
 <head>
-    <meta charset="UTF-8">
-    <title>Ordens Pendentes</title>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Ordens Pendentes • Schadek Industrial Dashboard</title>
+    <!-- Separate Stylesheet from Stitch Design System -->
+    <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
-    <h1>Ordens Pendentes</h1>
+    <!-- TOP INDUSTRIAL APP HEADER -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="btn-sidebar-toggle" id="btn-toggle-sidebar" title="Recolher / Expandir Menu" type="button">
+                <span class="material-symbols-outlined" id="sidebar-toggle-icon">menu_open</span>
+            </button>
+            <div class="brand-wrapper">
+                <img alt="Logo Schadek" class="brand-logo" src="assets/Logo_schadek.png" />
+                <div class="brand-info">
+                    <div class="brand-title">
+                        <span class="brand-schadek">SCHADEK</span>
+                        <span class="brand-sep">•</span>
+                        <span>Sistema Integrado de OPs</span>
+                    </div>
+                    <span class="brand-sub">PCP &amp; PostgreSQL Gateway Enterprise</span>
+                </div>
+            </div>
+        </div>
 
-    <button id="btnCopiar">Copiar OPs para o SAP</button>
-    <button class="btnSetor" data-setor="Montagem">Montagem</button>
-    <button class="btnSetor" data-setor="Subconjunto">Subconjunto</button>
-    <button class="btnSetor" data-setor="Celula">Célula</button>
-    <button class="btnSetor" data-setor="BCM">BCM</button>
-    <button class="btnSetor" data-setor="Importada">Importada</button>
-    <button class="btnSetor" data-setor="Usinagem">Usinagem</button>
-    <button id="btnTodos">Todos</button>
-    <table border="1" id="tabelaOrdens">
-        <thead>
-            <tr>
-                <th data-campo="numero_op">OP</th>
-                <th data-campo="total_pecas">Total de peças</th>
-                <th data-campo="data_abertura">Data de abertura</th>
-                <th data-campo="material">Material</th>
-                <th data-campo="situacao">Situação</th>
-                <th data-campo="observacao">Observação</th>
-                <th data-campo="setor">Setor</th>
-                <th data-campo="prioridade">Prioridade</th>
-                <th data-campo="dia_analise">Dia analise</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- as linhas vão ser preenchidas pelo JavaScript -->
-        </tbody>
-    </table>
-<hr>
+        <div class="header-center">
+            <div class="search-box">
+                <span class="material-symbols-outlined"
+                    style="font-size: 18px; color: var(--text-subtle);">search</span>
+                <input id="global-search" placeholder="Localizar OP, Material ou Setor..." type="text" />
+            </div>
+        </div>
 
-<h2>Cadastrar Ordens em Massa</h2>
+        <div class="header-right">
+            <div class="badge-telemetry">
+                <span class="pulse-dot"></span>
+                <span>API Online :3000</span>
+            </div>
+            <div class="badge-telemetry" style="display: none;" id="badge-sap">
+                <span class="material-symbols-outlined" style="font-size: 14px; color: var(--primary);">sync_alt</span>
+                <span>SAP Buffer: Ativo</span>
+            </div>
+            <button class="btn-icon" id="btn-theme-toggle" title="Alternar Modo Escuro / Claro" type="button">
+                <span class="material-symbols-outlined" id="theme-icon" style="color: #f59e0b;">dark_mode</span>
+            </button>
+            <div class="user-badge">
+                <div style="display: flex; flex-direction: column; text-align: right;">
+                    <span style="font-weight: 600; font-size: 13px;">Carlos Eduardo</span>
+                    <span style="font-family: var(--font-mono); font-size: 11px; color: var(--primary);">Supervisor
+                        PCP</span>
+                </div>
+                <div class="user-avatar">CE</div>
+            </div>
+        </div>
+    </header>
 
-<div>
-    <label>Números das OPs (um por linha):</label><br>
-    <textarea id="listaOPs" rows="8" cols="20"></textarea>
-</div>
+    <!-- RETRACTABLE LEFT SIDEBAR -->
+    <aside class="app-sidebar" id="sidebar">
+        <div>
+            <div class="sidebar-section-title">Operações Fabris</div>
+            <nav class="sidebar-nav">
+                <a class="nav-item active" href="#" title="Painel de Controle OPs">
+                    <span class="material-symbols-outlined">precision_manufacturing</span>
+                    <span class="nav-text">Painel de Controle OPs</span>
+                </a>
+                <a class="nav-item" href="#batch-panel" id="nav-batch-link" title="Importação em Lote">
+                    <span class="material-symbols-outlined">input_circle</span>
+                    <span class="nav-text">Importação em Lote</span>
+                </a>
+                <a class="nav-item" href="#" title="Linhas &amp; Montagem">
+                    <span class="material-symbols-outlined">schema</span>
+                    <span class="nav-text">Linhas &amp; Montagem</span>
+                </a>
+                <a class="nav-item" href="#" title="Gateway SAP RFC">
+                    <span class="material-symbols-outlined">swap_horiz</span>
+                    <span class="nav-text">Gateway SAP RFC</span>
+                </a>
+                <a class="nav-item" href="#" title="Rastreabilidade">
+                    <span class="material-symbols-outlined">query_stats</span>
+                    <span class="nav-text">Rastreabilidade</span>
+                </a>
+            </nav>
+        </div>
 
-<div>
-    <label>Total de peças (um por linha, mesma ordem):</label><br>
-    <textarea id="listaPecas" rows="8" cols="20"></textarea>
-</div>
+        <div class="sidebar-footer">
+            <div class="db-status-row">
+                <span style="color: var(--text-muted); text-transform: uppercase;">Servidor</span>
+                <span style="color: var(--primary); font-weight: 700;">Node.js :3000</span>
+            </div>
+            <div class="db-status-row">
+                <span style="color: var(--text-muted); text-transform: uppercase;">Banco</span>
+                <span style="color: var(--status-green); font-weight: 700;">PostgreSQL 5432</span>
+            </div>
+        </div>
+    </aside>
 
-<div>
-    <label>Materiais (um por linha, mesma ordem):</label><br>
-    <textarea id="listaMateriais" rows="8" cols="20"></textarea>
-</div>
+    <!-- MAIN VIEWPORT -->
+    <div class="main-wrapper" id="main-content-wrapper">
+        <main class="dashboard-container">
 
-<div>
-    <label>Data de abertura:</label>
-    <input type="date" id="dataAberturaLote">
-</div>
+            <!-- 4 INDUSTRIAL KPI METRIC CARDS -->
+            <section class="kpi-grid">
+                <!-- Card 1 -->
+                <div class="kpi-card">
+                    <div class="kpi-content">
+                        <span class="kpi-label">Total em Fila PCP</span>
+                        <div class="kpi-value-row">
+                            <span class="kpi-number" id="kpi-total-ops">--</span>
+                            <span class="kpi-tag">+12 hoje</span>
+                        </div>
+                        <span class="kpi-subtext">Ordens pendentes carregadas</span>
+                    </div>
+                    <div class="kpi-icon-box">
+                        <span class="material-symbols-outlined" style="font-size: 26px;">precision_manufacturing</span>
+                    </div>
+                </div>
 
-<div>
-    <label>Dia de análise:</label>
-    <input type="date" id="diaAnaliseLote">
-</div>
+                <!-- Card 2 -->
+                <div class="kpi-card kpi-card-warning">
+                    <div class="kpi-content">
+                        <span class="kpi-label">Falta Pagar</span>
+                        <div class="kpi-value-row">
+                            <span class="kpi-number" id="kpi-falta-pagar">--</span>
+                            <span class="kpi-tag kpi-tag-warning">Alerta Financeiro</span>
+                        </div>
+                        <span class="kpi-subtext">Aguardando liberação</span>
+                    </div>
+                    <div class="kpi-icon-box">
+                        <span class="material-symbols-outlined" style="font-size: 26px;">pending_actions</span>
+                    </div>
+                </div>
 
-<div>
-    <label>Setor:</label>
-    <select id="setorLote">
-        <option value="Montagem">Montagem</option>
-        <option value="Subconjunto">Subconjunto</option>
-        <option value="Celula">Célula</option>
-        <option value="BCM">BCM</option>
-        <option value="Importada">Importada</option>
-        <option value="Usinagem">Usinagem</option>
-    </select>
-</div>
+                <!-- Card 3 -->
+                <div class="kpi-card kpi-card-danger">
+                    <div class="kpi-content">
+                        <span class="kpi-label">Crítico (&gt; 48h)</span>
+                        <div class="kpi-value-row">
+                            <span class="kpi-number" id="kpi-critico">14</span>
+                            <span class="kpi-tag kpi-tag-danger">Status Crítico</span>
+                        </div>
+                        <span class="kpi-subtext">Tempo de análise excedido</span>
+                    </div>
+                    <div class="kpi-icon-box">
+                        <span class="material-symbols-outlined" style="font-size: 26px;">timer_off</span>
+                    </div>
+                </div>
 
-<div>
-    <label>Situação:</label>
-    <select id="situacaoLote">
-        <option value="Falta Pagar">Falta Pagar</option>
-        <option value="Pago">Pago</option>
-        <option value="Encerrado">Encerrado</option>
-    </select>
-</div>
+                <!-- Card 4 -->
+                <div class="kpi-card kpi-card-success">
+                    <div class="kpi-content">
+                        <span class="kpi-label">Dentro do Prazo (≤ 48h)</span>
+                        <div class="kpi-value-row">
+                            <span class="kpi-number" id="kpi-prazo">132</span>
+                            <span class="kpi-tag kpi-tag-success">Em Dia</span>
+                        </div>
+                        <span class="kpi-subtext">Fluxo operacional normal</span>
+                    </div>
+                    <div class="kpi-icon-box">
+                        <span class="material-symbols-outlined" style="font-size: 26px;">schedule</span>
+                    </div>
+                </div>
+            </section>
 
-<div>
-    <label>Prioridade:</label>
-    <select id="prioridadeLote">
-        <option value="">Ainda não definida</option>
-        <option value="Exportacao">Exportação</option>
-        <option value="MWM">MWM</option>
-        <option value="KS">KS</option>
-        <option value="Marelli">Marelli</option>
-        <option value="Pendencia Comercial">Pendência Comercial</option>
-        <option value="Linha Pesada">Linha Pesada</option>
-        <option value="MRP">MRP</option>
-        <option value="Tryout">Tryout</option>
-    </select>
-</div>
+            <!-- ACTION & CONTROL TOOLBAR -->
+            <section class="toolbar-card">
+                <div class="toolbar-title-group">
+                    <h1 class="toolbar-title">Ordens Pendentes</h1>
+                    <span class="toolbar-badge">PostgreSQL Gateway</span>
+                </div>
+                <div class="toolbar-actions">
+                    <!-- MANDATORY BUTTON ID: btnCopiar -->
+                    <button id="btnCopiar" title="Copiar lista de OPs para a área de transferência" type="button">
+                        <span class="material-symbols-outlined">content_copy</span>
+                        <span>Copiar OPs para o SAP</span>
+                    </button>
+                    <!-- Toggle Batch Panel -->
+                    <button class="btn-primary-action" id="btn-toggle-batch" type="button">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">playlist_add</span>
+                        <span>Cadastrar em Massa</span>
+                    </button>
+                </div>
+            </section>
 
-<button id="btnGerarPrevia">Gerar Prévia</button>
+            <!-- SECTOR TABS (MANDATORY: btnTodos & btnSetor with data-setor) -->
+            <section class="sector-bar">
+                <div class="sector-tabs-list">
+                    <!-- MANDATORY BUTTON ID: btnTodos -->
+                    <button id="btnTodos" type="button">
+                        <span>Todos</span>
+                    </button>
+                    <!-- MANDATORY CLASSES & DATA-SETOR ATTRIBUTES -->
+                    <button class="btnSetor" data-setor="Montagem" type="button">
+                        <span>Montagem</span>
+                    </button>
+                    <button class="btnSetor" data-setor="Subconjunto" type="button">
+                        <span>Subconjunto</span>
+                    </button>
+                    <button class="btnSetor" data-setor="Celula" type="button">
+                        <span>Célula</span>
+                    </button>
+                    <button class="btnSetor" data-setor="BCM" type="button">
+                        <span>BCM</span>
+                    </button>
+                    <button class="btnSetor" data-setor="Importada" type="button">
+                        <span>Importada</span>
+                    </button>
+                    <button class="btnSetor" data-setor="Usinagem" type="button">
+                        <span>Usinagem</span>
+                    </button>
+                </div>
 
-<table border="1" id="tabelaPrevia">
-    <thead>
-        <tr>
-            <th>OP</th>
-            <th>Total de peças</th>
-            <th>Material</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
+                <!-- Priority Group Legend Indicators -->
+                <div class="priority-legends">
+                    <span class="legend-item"><span class="legend-dot red"></span> Lista Vermelha (Crítica)</span>
+                    <span class="legend-item"><span class="legend-dot yellow"></span> Lista Amarela (Comercial)</span>
+                    <span class="legend-item"><span class="legend-dot white"></span> Lista Branca (Padrão)</span>
+                </div>
+            </section>
 
-<button id="btnConfirmarLote">Confirmar e Cadastrar</button>
-    <script src = "ordens.js"></script>
+            <!-- MAIN DATA TABLE CONTAINER -->
+            <section class="table-card">
+                <div class="table-utility-bar">
+                    <div class="table-filter-input">
+                        <span class="material-symbols-outlined"
+                            style="font-size: 16px; color: var(--text-subtle);">search</span>
+                        <input id="table-search" placeholder="Filtro rápido visual na tabela..." type="text" />
+                    </div>
+                    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">
+                        <span>Clique nos cabeçalhos para ordenar as colunas</span>
+                    </div>
+                </div>
+
+                <div class="table-responsive-container">
+                    <!-- MANDATORY TABLE ID: tabelaOrdens -->
+                    <table id="tabelaOrdens">
+                        <thead>
+                            <tr>
+                                <!-- MANDATORY data-campo ATTRIBUTES FOR SORTING IN ordens.js -->
+                                <th data-campo="numero_op">OP</th>
+                                <th data-campo="total_pecas" style="text-align: right;">Total de peças</th>
+                                <th data-campo="data_abertura">Data de abertura</th>
+                                <th data-campo="material">Material</th>
+                                <th data-campo="situacao">Situação</th>
+                                <th data-campo="observacao">Observação</th>
+                                <th data-campo="setor">Setor</th>
+                                <th data-campo="prioridade">Prioridade</th>
+                                <th data-campo="dia_analise">Dia analise</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- As linhas vão ser preenchidas pelo JavaScript ordens.js -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="table-footer">
+                    <span id="table-records-counter">Aguardando dados da API...</span>
+                    <span>Schadek Industrial • PostgreSQL 15</span>
+                </div>
+            </section>
+
+            <!-- BATCH IMPORT MODULAR ACCORDION (COLLAPSIBLE) -->
+            <section class="hidden" id="batch-panel">
+                <div class="batch-header">
+                    <div class="batch-header-title">
+                        <span class="batch-accent-bar"></span>
+                        <div>
+                            <h2 class="batch-title">Cadastrar Ordens em Massa (Batch POST)</h2>
+                            <span class="batch-subtitle">Cole colunas tabulares copiadas do Excel ou ERP. Mesma ordem e
+                                quantidade de linhas.</span>
+                        </div>
+                    </div>
+                    <button class="btn-icon" id="btn-close-batch" title="Fechar Painel" type="button">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                <form onsubmit="event.preventDefault();" style="display: flex; flex-direction: column; gap: 18px;">
+                    <!-- 3-Column Textareas -->
+                    <div class="batch-grid-textareas">
+                        <!-- MANDATORY ID: listaOPs -->
+                        <div class="batch-field-group">
+                            <label class="batch-label" for="listaOPs">
+                                <span class="step-num">01.</span> Números das OPs (um por linha):
+                            </label>
+                            <textarea id="listaOPs" placeholder="1131789&#10;1131790&#10;1131792" rows="6"></textarea>
+                        </div>
+
+                        <!-- MANDATORY ID: listaPecas -->
+                        <div class="batch-field-group">
+                            <label class="batch-label" for="listaPecas">
+                                <span class="step-num">02.</span> Total de peças (um por linha, mesma ordem):
+                            </label>
+                            <textarea id="listaPecas" placeholder="500&#10;1200&#10;350" rows="6"></textarea>
+                        </div>
+
+                        <!-- MANDATORY ID: listaMateriais -->
+                        <div class="batch-field-group">
+                            <label class="batch-label" for="listaMateriais">
+                                <span class="step-num">03.</span> Materiais (um por linha, mesma ordem):
+                            </label>
+                            <textarea id="listaMateriais" placeholder="90000522&#10;90001840&#10;90003115"
+                                rows="6"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 5-Column Metadata Form Controls -->
+                    <div class="batch-controls-grid">
+                        <!-- MANDATORY ID: dataAberturaLote -->
+                        <div class="control-item">
+                            <label for="dataAberturaLote">Data de abertura:</label>
+                            <input id="dataAberturaLote" type="date" />
+                        </div>
+
+                        <!-- MANDATORY ID: diaAnaliseLote -->
+                        <div class="control-item">
+                            <label for="diaAnaliseLote">Dia de análise:</label>
+                            <input id="diaAnaliseLote" type="date" />
+                        </div>
+
+                        <!-- MANDATORY ID: setorLote -->
+                        <div class="control-item">
+                            <label for="setorLote">Setor:</label>
+                            <select id="setorLote">
+                                <option value="Montagem">Montagem</option>
+                                <option value="Subconjunto">Subconjunto</option>
+                                <option value="Celula">Célula</option>
+                                <option value="BCM">BCM</option>
+                                <option value="Importada">Importada</option>
+                                <option value="Usinagem">Usinagem</option>
+                            </select>
+                        </div>
+
+                        <!-- MANDATORY ID: situacaoLote -->
+                        <div class="control-item">
+                            <label for="situacaoLote">Situação:</label>
+                            <select id="situacaoLote">
+                                <option value="Falta Pagar">Falta Pagar</option>
+                                <option value="Pago">Pago</option>
+                                <option value="Encerrado">Encerrado</option>
+                            </select>
+                        </div>
+
+                        <!-- MANDATORY ID: prioridadeLote -->
+                        <div class="control-item">
+                            <label for="prioridadeLote">Prioridade:</label>
+                            <select id="prioridadeLote">
+                                <option value="">Ainda não definida</option>
+                                <option value="Exportacao">Exportação</option>
+                                <option value="MWM">MWM</option>
+                                <option value="KS">KS</option>
+                                <option value="Marelli">Marelli</option>
+                                <option value="Pendencia Comercial">Pendência Comercial</option>
+                                <option value="Linha Pesada">Linha Pesada</option>
+                                <option value="MRP">MRP</option>
+                                <option value="Tryout">Tryout</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="batch-actions-row">
+                        <!-- MANDATORY ID: btnGerarPrevia -->
+                        <button id="btnGerarPrevia" type="button">
+                            <span class="material-symbols-outlined">table_view</span>
+                            <span>Gerar Prévia</span>
+                        </button>
+
+                        <!-- MANDATORY ID: btnConfirmarLote -->
+                        <button id="btnConfirmarLote" type="button">
+                            <span class="material-symbols-outlined">upload</span>
+                            <span>Confirmar e Cadastrar</span>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- MANDATORY PREVIEW TABLE: tabelaPrevia -->
+                <div style="overflow-x: auto;">
+                    <table id="tabelaPrevia">
+                        <thead>
+                            <tr>
+                                <th>OP</th>
+                                <th>Total de peças</th>
+                                <th>Material</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Preenchido pelo ordens.js -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- TOAST NOTIFICATION WHEN COPIED -->
+    <div class="toast-notification" id="toast-sap">
+        <div class="toast-icon">
+            <span class="material-symbols-outlined">check</span>
+        </div>
+        <div class="toast-text">
+            <span class="toast-title">OPs Copiadas para a Área de Transferência!</span>
+            <span class="toast-desc">Pronto para colar nas transações COOIS / SAP.</span>
+        </div>
+    </div>
+
+    <!-- UI INTERACTIVE SCRIPT (SIDEBAR, THEME, BATCH TOGGLE, TOAST & ACTIVE TABS) -->
+    <script>
+        // 1. Sidebar Toggle
+        const sidebar = document.getElementById('sidebar');
+        const mainWrapper = document.getElementById('main-content-wrapper');
+        const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+        const sidebarIcon = document.getElementById('sidebar-toggle-icon');
+
+        if (btnToggleSidebar) {
+            btnToggleSidebar.addEventListener('click', () => {
+                document.body.classList.toggle('sidebar-collapsed');
+                if (document.body.classList.contains('sidebar-collapsed')) {
+                    sidebarIcon.innerText = 'menu';
+                } else {
+                    sidebarIcon.innerText = 'menu_open';
+                }
+            });
+        }
+
+        // 2. Dark/Light Theme Toggle
+        const btnThemeToggle = document.getElementById('btn-theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const htmlRoot = document.documentElement;
+
+        if (btnThemeToggle) {
+            btnThemeToggle.addEventListener('click', () => {
+                htmlRoot.classList.toggle('dark');
+                const isDark = htmlRoot.classList.contains('dark');
+                themeIcon.innerText = isDark ? 'dark_mode' : 'light_mode';
+                themeIcon.style.color = isDark ? '#f59e0b' : '#f97316';
+            });
+        }
+
+        // 3. Batch Panel Toggle
+        const btnToggleBatch = document.getElementById('btn-toggle-batch');
+        const btnCloseBatch = document.getElementById('btn-close-batch');
+        const navBatchLink = document.getElementById('nav-batch-link');
+        const batchPanel = document.getElementById('batch-panel');
+
+        function toggleBatchPanel() {
+            if (batchPanel) {
+                batchPanel.classList.toggle('hidden');
+                if (!batchPanel.classList.contains('hidden')) {
+                    batchPanel.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        }
+
+        if (btnToggleBatch) btnToggleBatch.addEventListener('click', toggleBatchPanel);
+        if (btnCloseBatch) btnCloseBatch.addEventListener('click', toggleBatchPanel);
+        if (navBatchLink) navBatchLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (batchPanel && batchPanel.classList.contains('hidden')) {
+                toggleBatchPanel();
+            } else if (batchPanel) {
+                batchPanel.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+
+        // 4. Sector Active Tab State Highlighting
+        const btnTodos = document.getElementById('btnTodos');
+        const setorButtons = document.querySelectorAll('.btnSetor');
+
+        if (btnTodos) {
+            btnTodos.addEventListener('click', () => {
+                setorButtons.forEach(b => b.classList.remove('active'));
+                btnTodos.style.background = 'var(--primary)';
+                btnTodos.style.color = '#fff';
+            });
+        }
+
+        setorButtons.forEach(b => {
+            b.addEventListener('click', () => {
+                if (btnTodos) {
+                    btnTodos.style.background = 'var(--bg-container-low)';
+                    btnTodos.style.color = 'var(--text-muted)';
+                }
+                setorButtons.forEach(btn => btn.classList.remove('active'));
+                b.classList.add('active');
+            });
+        });
+
+        // 5. Toast when btnCopiar is clicked
+        const btnCopiar = document.getElementById('btnCopiar');
+        const toastSap = document.getElementById('toast-sap');
+
+        if (btnCopiar && toastSap) {
+            btnCopiar.addEventListener('click', () => {
+                toastSap.classList.add('show');
+                setTimeout(() => {
+                    toastSap.classList.remove('show');
+                }, 3500);
+            });
+        }
+
+        // 6. Fast in-page table search filter
+        const tableSearch = document.getElementById('table-search');
+        if (tableSearch) {
+            tableSearch.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase().trim();
+                const rows = document.querySelectorAll('#tabelaOrdens tbody tr');
+                rows.forEach(row => {
+                    const text = row.innerText.toLowerCase();
+                    row.style.display = text.includes(term) ? '' : 'none';
+                });
+            });
+        }
+
+        // 7. Observer to update KPI numbers and counter when ordens.js populates the table
+        const tbody = document.querySelector('#tabelaOrdens tbody');
+        if (tbody) {
+            const observer = new MutationObserver(() => {
+                const rows = tbody.querySelectorAll('tr');
+                const total = rows.length;
+                const counter = document.getElementById('table-records-counter');
+                const kpiTotal = document.getElementById('kpi-total-ops');
+                const kpiFaltaPagar = document.getElementById('kpi-falta-pagar');
+
+                if (counter) counter.innerText = `Exibindo ${total} ordens de produção`;
+                if (kpiTotal) kpiTotal.innerText = total > 0 ? total : '0';
+                if (kpiFaltaPagar) kpiFaltaPagar.innerText = total > 0 ? total : '0';
+            });
+            observer.observe(tbody, { childList: true });
+        }
+    </script>
+
+    <!-- UNTOUCHED JAVASCRIPT LOGIC (HANDLES FETCH, DATA MANIPULATION & EVENTS) -->
+    <script src="ordens.js"></script>
 </body>
+
 </html>
