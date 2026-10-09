@@ -12,13 +12,22 @@ function formatarData(dataISO) {
         return dia + '/' + mes + '/' + ano;
 };
 
+function formatarDiaAnalise (data) {
+    if (data) {
+        return formatarData(data);
+    } else {
+        return  '-';
+    }
+}
+
 function renderizarTabela (lista) {
+    atualizarKPIs(lista);
     listaAtual = lista
     var tabela = document.getElementById('tabelaOrdens');
     var corpoTabela = tabela.querySelector('tbody');
     var html = '';
     lista.forEach(function(ordem) {
-        html += '<tr><td>' + ordem.numero_op + '</td><td>' + ordem.total_pecas + '</td><td>' + formatarData(ordem.data_abertura) + '</td><td>' + ordem.material + '</td><td>' + ordem.situacao + '</td><td>' + (ordem.observacao || '') + '</td><td>' + ordem.setor + '</td><td>' + ordem.prioridade + '</td><td>' + formatarData(ordem.dia_analise) + '</td></tr>';
+        html += '<tr><td>' + ordem.numero_op + '</td><td>' + ordem.total_pecas + '</td><td>' + formatarData(ordem.data_abertura) + '</td><td>' + ordem.material + '</td><td>' + ordem.situacao + '</td><td>' + (ordem.observacao || '') + '</td><td>' + ordem.setor + '</td><td>' + ordem.prioridade + '</td><td>' + formatarDiaAnalise(ordem.dia_analise) + '</td></tr>';
     });
     corpoTabela.innerHTML = html;
 }
@@ -37,6 +46,16 @@ function ordenarPor (campo) {
         return 0;
     });
     renderizarTabela(ordenadas);
+}
+
+function atualizarKPIs (lista) {
+    var total = lista.length;
+    var faltaPagar = lista.filter(function(ordem) {
+        return ordem.situacao === 'Falta Pagar';
+    }).length;
+
+    document.getElementById('kpi-total-ops').innerText = total;
+    document.getElementById('kpi-falta-pagar').innerText = faltaPagar;
 }
 
     fetch('http://localhost:3000/ordens/pendentes') //pega a url bruta, sem os dados json

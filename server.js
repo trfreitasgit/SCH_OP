@@ -39,7 +39,7 @@ app.post('/ordens', function(req, res) {
     var total_pecas = req.body.total_pecas;
     var material = req.body.material;
     var data_abertura = req.body.data_abertura;
-    var dia_analise = req.body.dia_analise;
+    var dia_analise = null;
     var situacao = req.body.situacao;
     var prioridade = req.body.prioridade;
     var observacao = req.body.observacao;
@@ -54,13 +54,27 @@ app.post('/ordens', function(req, res) {
     });
 });
 
-app.put('/ordens/:id', function (req, res) { // por enquanto só altera a situação
+app.put('/ordens/:id', function (req, res) { // faz alterações nas ordens
     var id = req.params.id; // pega o número da url
     var situacao = req.body.situacao;
-    var prioridade = req.body.prioridade
+    var prioridade = req.body.prioridade;
+    var dia_analise = null;
+    if (situacao === 'Pago') {
+        dia_analise = new Date().toLocaleDateString('en-CA', {timeZone: 'America/Sao_Paulo'});
+    }
     var peso_prioridade = pesos[prioridade];
 
-    pool.query('UPDATE ordens_producao SET situacao = $1, prioridade = $2, peso_prioridade = $3 WHERE id = $4', [situacao, prioridade, peso_prioridade, id], function (erro, resultado) {
+    pool.query(`UPDATE ordens_producao SET
+         situacao = coalesce ($1::text, situacao),
+         prioridade = coalesce ($2::text, prioridade),
+         peso_prioridade = coalesce ($3::int, peso_prioridade),
+         dia_analise = CASE
+            WHEN $1::text = 'Pago' THEN $4::date
+            WHEN $1::text IS NOT NULL THEN NULL
+            ELSE dia_analise
+         END
+         WHERE id = $5`,
+         [situacao, prioridade, peso_prioridade, dia_analise, id], function (erro, resultado) {
         if (erro) {
             return res.status(500).json({erro: erro.message});
         }
