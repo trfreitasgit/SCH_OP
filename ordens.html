@@ -29,14 +29,6 @@
             </div>
         </div>
 
-        <div class="header-center">
-            <div class="search-box">
-                <span class="material-symbols-outlined"
-                    style="font-size: 18px; color: var(--text-subtle);">search</span>
-                <input id="global-search" placeholder="Localizar OP, Material ou Setor..." type="text" />
-            </div>
-        </div>
-
         <div class="header-right">
             <div class="badge-telemetry">
                 <span class="pulse-dot"></span>
@@ -52,8 +44,7 @@
             <div class="user-badge">
                 <div style="display: flex; flex-direction: column; text-align: right;">
                     <span style="font-weight: 600; font-size: 13px;">Carlos Eduardo</span>
-                    <span style="font-family: var(--font-mono); font-size: 11px; color: var(--primary);">Supervisor
-                        PCP</span>
+                    <span style="font-family: var(--font-mono); font-size: 11px; color: var(--primary);">Supervisor PCP</span>
                 </div>
                 <div class="user-avatar">CE</div>
             </div>
@@ -111,8 +102,8 @@
                     <div class="kpi-content">
                         <span class="kpi-label">Total em Fila PCP</span>
                         <div class="kpi-value-row">
-                            <span class="kpi-number" id="kpi-total-ops">--</span>
-                            <span class="kpi-tag">+12 hoje</span>
+                            <span class="kpi-number" id="kpi-total-ops">0</span>
+                            <span class="kpi-tag">Ativas</span>
                         </div>
                         <span class="kpi-subtext">Ordens pendentes carregadas</span>
                     </div>
@@ -126,7 +117,7 @@
                     <div class="kpi-content">
                         <span class="kpi-label">Falta Pagar</span>
                         <div class="kpi-value-row">
-                            <span class="kpi-number" id="kpi-falta-pagar">--</span>
+                            <span class="kpi-number" id="kpi-falta-pagar">0</span>
                             <span class="kpi-tag kpi-tag-warning">Alerta Financeiro</span>
                         </div>
                         <span class="kpi-subtext">Aguardando liberação</span>
@@ -139,12 +130,12 @@
                 <!-- Card 3 -->
                 <div class="kpi-card kpi-card-danger">
                     <div class="kpi-content">
-                        <span class="kpi-label">Crítico (&gt; 48h)</span>
+                        <span class="kpi-label">Pagas após 48h (&gt; 48h)</span>
                         <div class="kpi-value-row">
-                            <span class="kpi-number" id="kpi-critico">14</span>
-                            <span class="kpi-tag kpi-tag-danger">Status Crítico</span>
+                            <span class="kpi-number" id="kpi-critico">0</span>
+                            <span class="kpi-tag kpi-tag-danger">Fora do Prazo</span>
                         </div>
-                        <span class="kpi-subtext">Tempo de análise excedido</span>
+                        <span class="kpi-subtext">Pagas depois de 2 dias da abertura</span>
                     </div>
                     <div class="kpi-icon-box">
                         <span class="material-symbols-outlined" style="font-size: 26px;">timer_off</span>
@@ -154,12 +145,12 @@
                 <!-- Card 4 -->
                 <div class="kpi-card kpi-card-success">
                     <div class="kpi-content">
-                        <span class="kpi-label">Dentro do Prazo (≤ 48h)</span>
+                        <span class="kpi-label">Pagas no Prazo (≤ 48h)</span>
                         <div class="kpi-value-row">
-                            <span class="kpi-number" id="kpi-prazo">132</span>
+                            <span class="kpi-number" id="kpi-prazo">0</span>
                             <span class="kpi-tag kpi-tag-success">Em Dia</span>
                         </div>
-                        <span class="kpi-subtext">Fluxo operacional normal</span>
+                        <span class="kpi-subtext">Análise em até 48h da abertura</span>
                     </div>
                     <div class="kpi-icon-box">
                         <span class="material-symbols-outlined" style="font-size: 26px;">schedule</span>
@@ -175,7 +166,7 @@
                 </div>
                 <div class="toolbar-actions">
                     <!-- MANDATORY BUTTON ID: btnCopiar -->
-                    <button id="btnCopiar" title="Copiar lista de OPs para a área de transferência" type="button">
+                    <button id="btnCopiar" title="Copiar lista de OPs visíveis para a área de transferência" type="button">
                         <span class="material-symbols-outlined">content_copy</span>
                         <span>Copiar OPs para o SAP</span>
                     </button>
@@ -231,8 +222,48 @@
                             style="font-size: 16px; color: var(--text-subtle);">search</span>
                         <input id="table-search" placeholder="Filtro rápido visual na tabela..." type="text" />
                     </div>
-                    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">
-                        <span>Clique nos cabeçalhos para ordenar as colunas</span>
+                    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); display: flex; gap: 14px;">
+                        <span>💡 Duplo clique para editar | Enter salva | Esc cancela</span>
+                    </div>
+                </div>
+
+                <!-- BARRA DE EDIÇÃO E REMOÇÃO EM MASSA -->
+                <div id="barraEdicaoMassa" class="bulk-actions-bar" style="display: none;">
+                    <div class="bulk-info">
+                        <span class="material-symbols-outlined" style="color: var(--primary);">checklist</span>
+                        <span id="bulk-selected-count">0 ordens selecionadas</span>
+                    </div>
+                    <div class="bulk-form">
+                        <label for="campoMassa" style="font-size: 12px; color: var(--text-muted); font-weight: 600;">CAMPO:</label>
+                        <select id="campoMassa" class="bulk-select">
+                            <option value="situacao">Situação</option>
+                            <option value="setor">Setor</option>
+                            <option value="prioridade">Prioridade</option>
+                            <option value="dia_analise">Dia de Análise</option>
+                            <option value="data_abertura">Data de Abertura</option>
+                            <option value="total_pecas">Total de Peças</option>
+                            <option value="material">Material (máx 8 dígitos)</option>
+                            <option value="observacao">Observação</option>
+                        </select>
+
+                        <label for="containerValorMassa" style="font-size: 12px; color: var(--text-muted); font-weight: 600;">NOVO VALOR:</label>
+                        <div id="containerValorMassa" style="display: flex;">
+                            <!-- Preenchido dinamicamente via JS -->
+                        </div>
+
+                        <button id="btnAplicarMassa" type="button" class="btn-primary-action" style="padding: 6px 14px;">
+                            <span class="material-symbols-outlined" style="font-size: 17px;">done_all</span>
+                            <span>Aplicar</span>
+                        </button>
+
+                        <button id="btnExcluirMassa" type="button" class="btn-danger-action" title="Excluir ordens selecionadas">
+                            <span class="material-symbols-outlined" style="font-size: 17px;">delete</span>
+                            <span>Excluir Selecionadas</span>
+                        </button>
+
+                        <button id="btnDesmarcarTodas" type="button" class="btn-secondary-action">
+                            <span>Desmarcar</span>
+                        </button>
                     </div>
                 </div>
 
@@ -241,6 +272,10 @@
                     <table id="tabelaOrdens">
                         <thead>
                             <tr>
+                                <!-- Checkbox para selecionar todas -->
+                                <th class="th-check">
+                                    <input type="checkbox" id="checkTodas" title="Selecionar todas as ordens" />
+                                </th>
                                 <!-- MANDATORY data-campo ATTRIBUTES FOR SORTING IN ordens.js -->
                                 <th data-campo="numero_op">OP</th>
                                 <th data-campo="total_pecas" style="text-align: right;">Total de peças</th>
@@ -251,6 +286,7 @@
                                 <th data-campo="setor">Setor</th>
                                 <th data-campo="prioridade">Prioridade</th>
                                 <th data-campo="dia_analise">Dia analise</th>
+                                <th class="th-acoes">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -260,8 +296,8 @@
                 </div>
 
                 <div class="table-footer">
-                    <span id="table-records-counter">Aguardando dados da API...</span>
-                    <span>Schadek Automotive • PostgreSQL 15</span>
+                    <span id="table-records-counter">Carregando ordens...</span>
+                    <span>Schadek Industrial • PostgreSQL 15</span>
                 </div>
             </section>
 
@@ -272,8 +308,7 @@
                         <span class="batch-accent-bar"></span>
                         <div>
                             <h2 class="batch-title">Cadastrar Ordens em Massa (Batch POST)</h2>
-                            <span class="batch-subtitle">Cole colunas tabulares copiadas do Excel ou ERP. Mesma ordem e
-                                quantidade de linhas.</span>
+                            <span class="batch-subtitle">Cole colunas tabulares copiadas do Excel ou ERP. Mesma ordem e quantidade de linhas.</span>
                         </div>
                     </div>
                     <button class="btn-icon" id="btn-close-batch" title="Fechar Painel" type="button">
@@ -303,10 +338,9 @@
                         <!-- MANDATORY ID: listaMateriais -->
                         <div class="batch-field-group">
                             <label class="batch-label" for="listaMateriais">
-                                <span class="step-num">03.</span> Materiais (um por linha, mesma ordem):
+                                <span class="step-num">03.</span> Materiais (máx 8 dígitos, um por linha, mesma ordem):
                             </label>
-                            <textarea id="listaMateriais" placeholder="90000522&#10;90001840&#10;90003115"
-                                rows="6"></textarea>
+                            <textarea id="listaMateriais" placeholder="90000522&#10;90001840&#10;90003115" rows="6"></textarea>
                         </div>
                     </div>
 
@@ -400,18 +434,18 @@
         </main>
     </div>
 
-    <!-- TOAST NOTIFICATION WHEN COPIED -->
+    <!-- TOAST NOTIFICATION -->
     <div class="toast-notification" id="toast-sap">
         <div class="toast-icon">
             <span class="material-symbols-outlined">check</span>
         </div>
         <div class="toast-text">
-            <span class="toast-title">OPs Copiadas para a Área de Transferência!</span>
-            <span class="toast-desc">Pronto para colar nas transações COOIS / SAP.</span>
+            <span class="toast-title" id="toast-title">OPs Copiadas para a Área de Transferência!</span>
+            <span class="toast-desc" id="toast-desc">Pronto para colar nas transações COOIS / SAP.</span>
         </div>
     </div>
 
-    <!-- UI INTERACTIVE SCRIPT (SIDEBAR, THEME, BATCH TOGGLE, TOAST & ACTIVE TABS) -->
+    <!-- UI INTERACTIVE SCRIPT (SIDEBAR, THEME, BATCH TOGGLE & SEARCH) -->
     <script>
         // 1. Sidebar Toggle
         const sidebar = document.getElementById('sidebar');
@@ -493,51 +527,37 @@
             });
         });
 
-        // 5. Toast when btnCopiar is clicked
-        const btnCopiar = document.getElementById('btnCopiar');
-        const toastSap = document.getElementById('toast-sap');
-
-        if (btnCopiar && toastSap) {
-            btnCopiar.addEventListener('click', () => {
-                toastSap.classList.add('show');
-                setTimeout(() => {
-                    toastSap.classList.remove('show');
-                }, 3500);
-            });
-        }
-
-        // 6. Fast in-page table search filter
+        // 5. Fast in-page table search filter
         const tableSearch = document.getElementById('table-search');
         if (tableSearch) {
             tableSearch.addEventListener('input', (e) => {
                 const term = e.target.value.toLowerCase().trim();
                 const rows = document.querySelectorAll('#tabelaOrdens tbody tr');
+                let countVisible = 0;
                 rows.forEach(row => {
                     const text = row.innerText.toLowerCase();
-                    row.style.display = text.includes(term) ? '' : 'none';
+                    const visible = text.includes(term);
+                    row.style.display = visible ? '' : 'none';
+                    if (visible) countVisible++;
                 });
+                const counter = document.getElementById('table-records-counter');
+                if (counter) counter.innerText = `Exibindo ${countVisible} ordens filtradas`;
             });
         }
 
-        // 7. Observer to update KPI numbers and counter when ordens.js populates the table
+        // 6. Atualização do contador de registros no rodapé
         const tbody = document.querySelector('#tabelaOrdens tbody');
         if (tbody) {
             const observer = new MutationObserver(() => {
                 const rows = tbody.querySelectorAll('tr');
-                const total = rows.length;
                 const counter = document.getElementById('table-records-counter');
-                const kpiTotal = document.getElementById('kpi-total-ops');
-                const kpiFaltaPagar = document.getElementById('kpi-falta-pagar');
-
-                if (counter) counter.innerText = `Exibindo ${total} ordens de produção`;
-                if (kpiTotal) kpiTotal.innerText = total > 0 ? total : '0';
-                if (kpiFaltaPagar) kpiFaltaPagar.innerText = total > 0 ? total : '0';
+                if (counter) counter.innerText = `Exibindo ${rows.length} ordens de produção`;
             });
             observer.observe(tbody, { childList: true });
         }
     </script>
 
-    <!-- UNTOUCHED JAVASCRIPT LOGIC (HANDLES FETCH, DATA MANIPULATION & EVENTS) -->
+    <!-- LOGICA JAVASCRIPT PRINCIPAL -->
     <script src="ordens.js"></script>
 </body>
 

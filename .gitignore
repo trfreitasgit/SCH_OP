@@ -1,2 +1,4 @@
 node_modules/
 .agents/
+.env
+scratch_check.js

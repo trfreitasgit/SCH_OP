@@ -98,7 +98,8 @@ html:not(.dark) {
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   background-color: var(--bg-canvas);
   color: var(--text-main);
   font-family: var(--font-body);
@@ -121,7 +122,9 @@ button {
   background: none;
 }
 
-input, select, textarea {
+input,
+select,
+textarea {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
@@ -281,8 +284,17 @@ html:not(.dark) .app-header {
 }
 
 @keyframes pulseAnimation {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
 }
 
 .btn-icon {
@@ -559,9 +571,17 @@ html:not(.dark) .app-sidebar {
   z-index: 2;
 }
 
-.kpi-card-danger .kpi-icon-box { color: var(--status-red); }
-.kpi-card-warning .kpi-icon-box { color: var(--status-amber); }
-.kpi-card-success .kpi-icon-box { color: var(--status-green); }
+.kpi-card-danger .kpi-icon-box {
+  color: var(--status-red);
+}
+
+.kpi-card-warning .kpi-icon-box {
+  color: var(--status-amber);
+}
+
+.kpi-card-success .kpi-icon-box {
+  color: var(--status-green);
+}
 
 /* ==========================================================================
    TOOLBAR & ACTIONS BAR
@@ -749,9 +769,108 @@ html:not(.dark) .app-sidebar {
   border-radius: 50%;
 }
 
-.legend-dot.red { background-color: var(--status-red); box-shadow: 0 0 6px var(--status-red); }
-.legend-dot.yellow { background-color: var(--status-amber); }
-.legend-dot.white { background-color: #cbd5e1; }
+.legend-dot.red {
+  background-color: var(--status-red);
+  box-shadow: 0 0 6px var(--status-red);
+}
+
+.legend-dot.yellow {
+  background-color: var(--status-amber);
+}
+
+.legend-dot.white {
+  background-color: #cbd5e1;
+}
+
+/* ==========================================================================
+   BARRA DE EDIÇÃO EM MASSA
+   ========================================================================== */
+.bulk-actions-bar {
+  background: linear-gradient(90deg, rgba(30, 34, 43, 0.98), rgba(22, 25, 32, 0.98));
+  border: 1px solid var(--primary);
+  box-shadow: 0 4px 18px var(--primary-glow);
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 12px 18px;
+}
+
+.bulk-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-headline);
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 13px;
+}
+
+.bulk-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.bulk-select,
+.bulk-input {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  color: var(--text-main);
+  font-size: 13px;
+  outline: none;
+  min-width: 150px;
+  transition: var(--transition);
+}
+
+.bulk-select:focus,
+.bulk-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+.btn-secondary-action {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-container-high);
+  color: var(--text-muted);
+  border: 1px solid var(--outline);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-secondary-action:hover {
+  background: var(--bg-container-highest);
+  color: var(--text-main);
+}
+
+.btn-danger-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--status-red);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-danger-action:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 0 12px var(--status-red);
+}
 
 /* ==========================================================================
    DATA TABLE CARD & MANDATORY TABLE: tabelaOrdens
@@ -809,6 +928,22 @@ html:not(.dark) .app-sidebar {
   text-align: left;
 }
 
+/* Checkbox Column Styling */
+.th-check,
+.td-check {
+  width: 44px;
+  text-align: center !important;
+  padding: 8px !important;
+}
+
+.th-check input[type="checkbox"],
+.td-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
 /* Table Headers (with MANDATORY data-campo attributes) */
 #tabelaOrdens thead th {
   background-color: var(--bg-canvas);
@@ -826,16 +961,45 @@ html:not(.dark) .app-sidebar {
   transition: var(--transition);
 }
 
-#tabelaOrdens thead th:hover {
+#tabelaOrdens thead th[data-campo]:hover {
   color: var(--primary);
   background-color: var(--bg-container-low);
 }
 
-#tabelaOrdens thead th::after {
+#tabelaOrdens thead th[data-campo]::after {
   content: ' ↕';
   font-size: 10px;
   opacity: 0.4;
   margin-left: 4px;
+}
+
+.th-acoes,
+.td-acoes {
+  width: 64px;
+  text-align: center !important;
+  padding: 8px !important;
+  cursor: default !important;
+}
+
+.btn-excluir-linha {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.btn-excluir-linha:hover {
+  color: var(--status-red);
+  background-color: var(--status-red-bg);
+  border-color: var(--status-red-border);
+  transform: scale(1.08);
 }
 
 /* Table Body Rows (Populated Dynamically by ordens.js) */
@@ -860,12 +1024,42 @@ html:not(.dark) .app-sidebar {
   font-size: 13px;
   vertical-align: middle;
   color: var(--text-main);
+  position: relative;
 }
 
-/* Column Specific Styles for Dynamic Content */
+/* Visual cue for editable cells */
+#tabelaOrdens tbody td[data-coluna] {
+  cursor: pointer;
+}
 
-/* Col 1: OP */
-#tabelaOrdens tbody td:nth-child(1) {
+#tabelaOrdens tbody td[data-coluna]:hover {
+  outline: 1px dashed rgba(249, 115, 22, 0.45);
+  outline-offset: -2px;
+}
+
+/* Inline cell editor */
+.cell-editing {
+  padding: 4px 6px !important;
+  background-color: var(--bg-surface) !important;
+}
+
+.cell-editor-input,
+.cell-editor-select {
+  width: 100%;
+  min-width: 90px;
+  background-color: var(--bg-container-high);
+  color: var(--text-main);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+/* Column Specific Styles for Dynamic Content via data-coluna */
+#tabelaOrdens tbody td[data-coluna="numero_op"] {
   font-family: var(--font-mono);
   font-weight: 700;
   color: var(--primary);
@@ -873,37 +1067,32 @@ html:not(.dark) .app-sidebar {
   letter-spacing: 0.02em;
 }
 
-/* Col 2: Total de peças */
-#tabelaOrdens tbody td:nth-child(2) {
+#tabelaOrdens tbody td[data-coluna="total_pecas"] {
   font-family: var(--font-mono);
   font-weight: 600;
   text-align: right;
   color: var(--text-main);
 }
 
-/* Col 3: Data de abertura */
-#tabelaOrdens tbody td:nth-child(3) {
+#tabelaOrdens tbody td[data-coluna="data_abertura"] {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-muted);
 }
 
-/* Col 4: Material */
-#tabelaOrdens tbody td:nth-child(4) {
+#tabelaOrdens tbody td[data-coluna="material"] {
   font-family: var(--font-mono);
   font-weight: 600;
   color: var(--tertiary);
   letter-spacing: 0.04em;
 }
 
-/* Col 5: Situação */
-#tabelaOrdens tbody td:nth-child(5) {
+#tabelaOrdens tbody td[data-coluna="situacao"] {
   font-weight: 600;
   font-size: 12px;
 }
 
-/* Col 6: Observação */
-#tabelaOrdens tbody td:nth-child(6) {
+#tabelaOrdens tbody td[data-coluna="observacao"] {
   color: var(--text-muted);
   font-size: 12px;
   max-width: 220px;
@@ -912,20 +1101,17 @@ html:not(.dark) .app-sidebar {
   white-space: nowrap;
 }
 
-/* Col 7: Setor */
-#tabelaOrdens tbody td:nth-child(7) {
+#tabelaOrdens tbody td[data-coluna="setor"] {
   font-size: 12px;
   font-weight: 500;
 }
 
-/* Col 8: Prioridade */
-#tabelaOrdens tbody td:nth-child(8) {
+#tabelaOrdens tbody td[data-coluna="prioridade"] {
   font-weight: 600;
   font-size: 12px;
 }
 
-/* Col 9: Dia Análise */
-#tabelaOrdens tbody td:nth-child(9) {
+#tabelaOrdens tbody td[data-coluna="dia_analise"] {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-muted);
