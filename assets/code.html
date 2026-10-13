@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>
+@layer base {
+  html, body { margin:0; padding:0; }
+  body { overscroll-behavior: none; }
+  main > :first-child { margin-top:0 !important; }
+  main > :last-child { margin-bottom:0 !important; }
+}
+::-webkit-scrollbar { display: none; }
+
+/* Light mode specific style overrides */
+html:not(.dark) {
+  --bg-main: #f4f6f8;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f8fafc;
+  --border-color: #e2e8f0;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+}
+
+html:not(.dark) body {
+  background-color: #f4f6f8 !important;
+  color: #0f172a !important;
+}
+
+html:not(.dark) header {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05) !important;
+}
+
+html:not(.dark) aside#sidebar {
+  background-color: #ffffff !important;
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+html:not(.dark) .light-bg-card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+}
+
+html:not(.dark) .light-bg-subtle {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html:not(.dark) .light-text-main {
+  color: #0f172a !important;
+}
+
+html:not(.dark) .light-text-muted {
+  color: #64748b !important;
+}
+
+html:not(.dark) .light-border {
+  border-color: #e2e8f0 !important;
+}
+
+/* Badge status light modes */
+html:not(.dark) .status-falta-pagar {
+  background-color: #fef2f2 !important;
+  color: #b91c1c !important;
+  border-color: #fecaca !important;
+}
+html:not(.dark) .status-pago {
+  background-color: #ecfdf5 !important;
+  color: #047857 !important;
+  border-color: #a7f3d0 !important;
+}
+html:not(.dark) .status-encerrado {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Transition for layout sidebar */
+#sidebar {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+#main-content-wrapper {
+  transition: padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar-text {
+  transition: opacity 0.2s ease, max-width 0.2s ease;
+  white-space: nowrap;
+}
+.sidebar-collapsed .sidebar-text {
+  opacity: 0;
+  max-width: 0;
+  display: none !important;
+}
+.sidebar-collapsed .sidebar-item {
+  justify-content: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+.sidebar-collapsed .sidebar-section-title {
+  display: none !important;
+}
+.sidebar-collapsed .sidebar-footer-box {
+  display: none !important;
+}
+</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"background":"#111317","on-primary":"#552100","on-primary-fixed-variant":"#783200","surface":"#111317","on-primary-fixed":"#341100","on-secondary-fixed":"#370e00","surface-dim":"#111317","secondary":"#ffb599","surface-container":"#1e2024","surface-container-highest":"#333539","inverse-primary":"#9d4300","primary-container":"#f97316","on-tertiary-fixed-variant":"#004c69","on-tertiary-container":"#00374d","inverse-on-surface":"#2f3035","secondary-container":"#f66018","secondary-fixed-dim":"#ffb599","tertiary-container":"#00a6df","outline":"#a78b7d","error-container":"#93000a","error":"#ffb4ab","surface-container-low":"#1a1c20","surface-variant":"#333539","tertiary-fixed-dim":"#7bd0ff","on-error-container":"#ffdad6","on-secondary":"#5a1c00","surface-bright":"#37393e","on-surface-variant":"#e0c0b1","on-error":"#690005","secondary-fixed":"#ffdbce","tertiary":"#7bd0ff","on-background":"#e2e2e8","on-surface":"#e2e2e8","primary-fixed-dim":"#ffb690","primary":"#ffb690","tertiary-fixed":"#c4e7ff","on-tertiary":"#00354a","outline-variant":"#584237","surface-container-lowest":"#0c0e12","surface-container-high":"#282a2e","on-secondary-fixed-variant":"#7f2b00","on-tertiary-fixed":"#001e2c","inverse-surface":"#e2e2e8","on-primary-container":"#582200","surface-tint":"#ffb690","primary-fixed":"#ffdbca","on-secondary-container":"#4f1700"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"space-xl":"2rem","space-xs":"0.25rem","space-lg":"1.25rem","space-md":"0.75rem","margin":"1.5rem","gutter":"1rem","space-sm":"0.5rem"},"fontFamily":{"headline-lg-mobile":["Space Grotesk"],"headline-md":["Space Grotesk"],"headline-xl-mobile":["Space Grotesk"],"body-md":["Hanken Grotesk"],"body-lg":["Hanken Grotesk"],"headline-xl":["Space Grotesk"],"label-md":["JetBrains Mono"],"headline-sm":["Space Grotesk"],"headline-lg":["Space Grotesk"],"body-sm":["Hanken Grotesk"],"label-lg":["JetBrains Mono"],"label-sm":["JetBrains Mono"]},"fontSize":{"headline-lg-mobile":["22px",{"lineHeight":"28px","fontWeight":"700"}],"headline-md":["22px",{"lineHeight":"28px","fontWeight":"600"}],"headline-xl-mobile":["28px",{"lineHeight":"34px","fontWeight":"700"}],"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"headline-xl":["36px",{"lineHeight":"44px","letterSpacing":"-0.02em","fontWeight":"700"}],"label-md":["12px",{"lineHeight":"16px","fontWeight":"500"}],"headline-sm":["18px",{"lineHeight":"24px","fontWeight":"600"}],"headline-lg":["28px",{"lineHeight":"36px","letterSpacing":"-0.015em","fontWeight":"700"}],"body-sm":["12px",{"lineHeight":"16px","fontWeight":"400"}],"label-lg":["14px",{"lineHeight":"20px","fontWeight":"500"}],"label-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"500"}]}}}};</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased selection:bg-primary-container selection:text-on-primary-container transition-colors duration-200"><header class="fixed top-0 left-0 right-0 h-16 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.4)] z-50 px-gutter flex items-center justify-between gap-gutter light-border border-b border-white/5"><div class="flex items-center gap-space-md"><button class="flex items-center justify-center p-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors light-bg-card light-text-main" id="btn-toggle-sidebar" title="Recolher / Expandir menu lateral" type="button"><span class="material-symbols-outlined text-[20px]" id="sidebar-toggle-icon">menu_open</span></button><img alt="Logo Schadek" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAcJz71Wtr_6ODT10t7DlGkWt3trQ1vGnebkyOvTkuQhXlUyLyB6MZdhQURiaNkFlwXSW1cTSiGHqzC-7E__SQTnjgeY9pQfo4rlO-Y9fh8VWwIyK_y-2m3zK4PGg69BMuzkowANSU_ObERP-PnUydgBHEtpD2ExKcy-AO8Q-9RFeFhFSEnCA7Z0jWsLSliBH9B6PpYj6f6znFjMDRPKWXm4b0RriC4Mt7Vf0XKnBnhn7c2fFaX4A6C7u_rgvqxV5MhdYk"/><div class="flex flex-col"><span class="font-headline-sm text-headline-sm tracking-tight text-on-surface flex items-center gap-space-xs light-text-main"><span class="text-primary-container font-headline-md text-headline-md font-bold">SCHADEK</span><span class="text-outline font-body-sm text-body-sm light-text-muted">•</span><span class="font-headline-sm text-headline-sm text-on-surface light-text-main">Sistema Integrado de OPs</span></span><span class="font-label-sm text-label-sm text-on-surface-variant tracking-wider uppercase light-text-muted">PCP &amp; PostgreSQL Gateway Enterprise</span></div></div><div class="flex items-center gap-space-md"><div class="hidden md:flex items-center gap-space-xs px-space-sm py-1 bg-surface-container-high rounded-full light-bg-subtle light-border border border-white/5"><span class="w-2 h-2 rounded-full bg-[#10b981] animate-pulse"></span><span class="font-label-sm text-label-sm text-on-surface light-text-main">API Online :5432</span></div><div class="hidden lg:flex items-center gap-space-xs px-space-sm py-1 bg-surface-container-high rounded-full light-bg-subtle light-border border border-white/5"><span class="material-symbols-outlined text-primary text-[14px]">sync_alt</span><span class="font-label-sm text-label-sm text-on-surface light-text-main">SAP Buffer: Ativo</span></div><button class="flex items-center justify-center p-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors light-bg-card light-text-main" title="Sincronizar dados" type="button"><span class="material-symbols-outlined text-[20px]">sync</span></button><button class="flex items-center justify-center p-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors light-bg-card light-text-main" onclick="toggleDrawer()" title="Painel de Filtros Rápidos" type="button"><span class="material-symbols-outlined text-[20px]">filter_list</span></button><!-- THEME SWITCH TOGGLE BUTTON (DARK/LIGHT MODE) --><button class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface transition-colors light-bg-card light-text-main light-border border border-white/5" id="btn-theme-toggle" title="Alternar Modo Escuro / Claro" type="button"><span class="material-symbols-outlined text-[20px] text-amber-400" id="theme-icon">dark_mode</span><span class="font-label-sm text-label-sm hidden sm:inline" id="theme-text">Modo Escuro</span></button><div class="flex items-center gap-space-sm pl-space-sm"><div class="hidden sm:flex flex-col text-right"><span class="font-body-sm text-body-sm text-on-surface font-semibold light-text-main">Carlos Eduardo</span><span class="font-label-sm text-label-sm text-primary">Supervisor PCP</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold text-on-primary"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><!-- RETRACTABLE LEFT SIDEBAR (EXPANDED W-64, COLLAPSED W-[72px]) --><aside class="fixed left-0 top-16 bottom-0 w-64 bg-surface-container-lowest z-40 flex flex-col justify-between py-space-md px-space-sm border-r border-white/5 light-border shadow-md" id="sidebar"><div class="flex flex-col gap-space-md"><div class="px-space-sm flex items-center justify-between sidebar-section-title"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline light-text-muted">Operações Fabris</span></div><nav class="flex flex-col gap-space-xs" data-active-classes="bg-primary-container text-on-primary-container font-semibold rounded-lg"><a aria-current="page" class="sidebar-item flex items-center gap-space-sm px-space-md py-space-sm transition-colors bg-primary-container text-on-primary-container font-semibold rounded-lg shadow-sm" data-path="painel-de-controle-ops" href="#" title="Painel de Controle OPs"><span class="material-symbols-outlined text-[20px] shrink-0">precision_manufacturing</span><span class="sidebar-text">Painel de Controle OPs</span></a><a class="sidebar-item flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-body-md text-body-md light-text-muted" data-path="importacao-em-lote" href="#batch-panel" onclick="if(document.getElementById('batch-panel').classList.contains('hidden')) toggleBatch();" title="Importação em Lote"><span class="material-symbols-outlined text-[20px] shrink-0">input_circle</span><span class="sidebar-text">Importação em Lote</span></a><a class="sidebar-item flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-body-md text-body-md light-text-muted" data-path="monitoramento-shopfloor" href="#" title="Linhas &amp; Montagem"><span class="material-symbols-outlined text-[20px] shrink-0">schema</span><span class="sidebar-text">Linhas &amp; Montagem</span></a><a class="sidebar-item flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-body-md text-body-md light-text-muted" data-path="gateway-sap" href="#" title="Gateway SAP RFC"><span class="material-symbols-outlined text-[20px] shrink-0">swap_horiz</span><span class="sidebar-text">Gateway SAP RFC</span></a><a class="sidebar-item flex items-center gap-space-sm px-space-md py-space-sm rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-body-md text-body-md light-text-muted" data-path="relatorios-rastreabilidade" href="#" title="Rastreabilidade"><span class="material-symbols-outlined text-[20px] shrink-0">query_stats</span><span class="sidebar-text">Rastreabilidade</span></a></nav></div><!-- DB STATUS FOOTER WIDGET --><div class="p-space-sm bg-surface-container-low rounded-lg flex flex-col gap-space-xs light-bg-subtle light-border border border-white/5 sidebar-footer-box"><div class="flex items-center justify-between text-on-surface"><span class="font-label-sm text-label-sm uppercase text-outline light-text-muted">DB Status</span><span class="font-label-sm text-label-sm text-primary font-bold">PG 15.3</span></div><div class="flex items-center gap-space-xs"><span class="w-1.5 h-1.5 rounded-full bg-[#10b981]"></span><span class="font-label-sm text-label-sm text-on-surface-variant light-text-muted">Pool: 18/50 conexões</span></div></div></aside><div class="pl-64" id="main-content-wrapper"><main class="w-full pt-16 bg-surface min-h-screen px-gutter py-gutter"><div class="flex flex-col w-full gap-space-lg relative">
+<!-- TOP SUMMARY & INDUSTRIAL TELEMETRY BAR: 4 REQUISITED KPIS -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-space-md">
+<!-- Card 1: Ordens em Fila PCP -->
+<div class="bg-surface-container-low p-space-md rounded-xl flex items-center justify-between shadow-sm relative overflow-hidden border border-white/5 light-bg-card light-border">
+<div class="flex flex-col gap-1 z-10">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline light-text-muted">Ordens em Fila PCP</span>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-on-surface font-bold light-text-main">184</span>
+<span class="font-label-sm text-label-sm text-primary font-bold">+12 hoje</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant light-text-muted">42.850 itens alocados</span>
+</div>
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-primary-container z-10 light-bg-subtle">
+<span class="material-symbols-outlined text-[26px]">precision_manufacturing</span>
+</div>
+<div class="absolute -right-4 -bottom-4 w-24 h-24 bg-primary-container/10 rounded-full blur-xl pointer-events-none"></div>
+</div>
+<!-- Card 2: Falta Pagar -->
+<div class="bg-surface-container-low p-space-md rounded-xl flex items-center justify-between shadow-sm relative overflow-hidden border border-amber-500/20 light-bg-card light-border">
+<div class="flex flex-col gap-1 z-10">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline light-text-muted">Falta Pagar</span>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-amber-500 dark:text-amber-400 font-bold">38</span>
+<span class="font-label-sm text-label-sm text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-500/20 px-1.5 py-0.5 rounded font-semibold border border-amber-300 dark:border-amber-500/30">Alerta Financeiro</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant light-text-muted">Aguardando liberação de pagamento</span>
+</div>
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-amber-500 dark:text-amber-400 z-10 light-bg-subtle">
+<span class="material-symbols-outlined text-[26px]">pending_actions</span>
+</div>
+<div class="absolute -right-4 -bottom-4 w-24 h-24 bg-amber-500/10 rounded-full blur-xl pointer-events-none"></div>
+</div>
+<!-- Card 3: Passaram de 2 Dias (> 48h) -->
+<div class="bg-surface-container-low p-space-md rounded-xl flex items-center justify-between shadow-sm relative overflow-hidden border border-red-500/30 light-bg-card light-border">
+<div class="flex flex-col gap-1 z-10">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline light-text-muted">Passaram de 2 Dias (&gt; 48h)</span>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-red-600 dark:text-red-400 font-bold">14</span>
+<span class="font-label-sm text-label-sm text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-950/60 px-1.5 py-0.5 rounded font-bold border border-red-300 dark:border-red-500/40">Status Crítico</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant light-text-muted">Tempo de fila excedido (&gt; 48h)</span>
+</div>
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-red-600 dark:text-red-400 z-10 light-bg-subtle">
+<span class="material-symbols-outlined text-[26px]">timer_off</span>
+</div>
+<div class="absolute -right-4 -bottom-4 w-24 h-24 bg-red-600/15 rounded-full blur-xl pointer-events-none"></div>
+</div>
+<!-- Card 4: Dentro de 2 Dias (≤ 48h) -->
+<div class="bg-surface-container-low p-space-md rounded-xl flex items-center justify-between shadow-sm relative overflow-hidden border border-emerald-500/20 light-bg-card light-border">
+<div class="flex flex-col gap-1 z-10">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline light-text-muted">Dentro de 2 Dias (≤ 48h)</span>
+<div class="flex items-baseline gap-space-xs">
+<span class="font-headline-lg text-headline-lg text-emerald-600 dark:text-emerald-400 font-bold">132</span>
+<span class="font-label-sm text-label-sm text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded font-semibold border border-emerald-300 dark:border-emerald-500/30">Em Dia</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant light-text-muted">Dentro do prazo regulamentar</span>
+</div>
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center text-emerald-600 dark:text-emerald-400 z-10 light-bg-subtle">
+<span class="material-symbols-outlined text-[26px]">schedule</span>
+</div>
+<div class="absolute -right-4 -bottom-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl pointer-events-none"></div>
+</div>
+</div>
+<!-- CONTROL TOOLBAR & ACTION HEADER -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md bg-surface-container-low p-space-md rounded-xl border border-white/5 light-bg-card light-border">
+<div class="flex flex-col sm:flex-row sm:items-center gap-space-md">
+<div class="flex items-center gap-space-sm">
+<span class="font-headline-md text-headline-md text-on-surface light-text-main font-bold">Ordens Pendentes</span>
+<span class="font-label-sm text-label-sm bg-primary-container text-on-primary-container font-bold px-2 py-0.5 rounded-full">184 Registros</span>
+</div>
+<div class="h-4 w-[1px] bg-surface-container-highest light-border hidden sm:block"></div>
+<div class="flex items-center gap-space-xs text-on-surface-variant light-text-muted">
+<span class="material-symbols-outlined text-[16px] text-primary">terminal</span>
+<code class="font-label-sm text-label-sm text-on-surface-variant light-text-muted">GET /api/v1/ordens?status=fila_pcp</code>
+</div>
+</div>
+<!-- Quick Action Industrial Buttons -->
+<div class="flex flex-wrap items-center gap-space-sm">
+<button class="flex items-center gap-space-xs px-space-md py-1.5 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-lg text-body-sm font-semibold transition-colors light-bg-subtle light-text-main light-border border border-white/5" id="btn-toggle-filters" type="button">
+<span class="material-symbols-outlined text-[18px] text-primary">filter_alt</span>
+<span>Filtros Laterais</span>
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-1.5 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-lg text-body-sm font-semibold transition-colors group light-bg-subtle light-text-main light-border border border-white/5" id="btn-copy-sap" type="button">
+<span class="material-symbols-outlined text-[18px] text-tertiary group-hover:rotate-12 transition-transform">content_copy</span>
+<span>Copiar OPs para o SAP</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-1.5 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-lg text-body-sm font-semibold transition-colors light-bg-subtle light-text-main light-border border border-white/5" id="btn-toggle-batch" type="button">
+<span class="material-symbols-outlined text-[18px] text-primary">playlist_add</span>
+<span>Cadastrar em Massa</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-1.5 bg-primary-container hover:bg-inverse-primary text-on-primary-container rounded-lg text-body-sm font-bold shadow-md transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">add_circle</span>
+<span>+ Nova OP</span>
+</button>
+<button class="p-2 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-lg transition-colors light-bg-subtle light-text-main light-border border border-white/5" title="Exportar CSV/XLS" type="button">
+<span class="material-symbols-outlined text-[18px]">file_download</span>
+</button>
+</div>
+</div>
+<!-- SECTOR TABS (RIGOROUSLY THE 6 SPECIFIED SECTORS) -->
+<div class="flex items-center justify-between border-b border-surface-container-highest/40 light-border pb-space-xs overflow-x-auto gap-space-sm">
+<div class="flex items-center gap-space-xs min-w-max">
+<button class="px-space-md py-1.5 rounded-lg bg-primary-container text-on-primary-container font-headline-sm text-body-sm font-semibold flex items-center gap-space-xs shadow-sm">
+<span>Todos</span>
+<span class="bg-black/20 text-on-primary-container px-1.5 py-0.5 rounded text-[11px] font-mono">184</span>
+</button>
+<button class="px-space-md py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-body-sm font-medium flex items-center gap-space-xs transition-colors light-bg-card light-text-main light-border border border-white/5">
+<span>Montagem</span>
+<span class="bg-surface-container-highest light-bg-subtle text-on-surface-variant light-text-muted px-1.5 py-0.5 rounded text-[11px] font-mono">28</span>
+</button>
+<button class="px-space-md py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-body-sm font-medium flex items-center gap-space-xs transition-colors light-bg-card light-text-main light-border border border-white/5">
+<span>Subconjunto</span>
+<span class="bg-surface-container-highest light-bg-subtle text-on-surface-variant light-text-muted px-1.5 py-0.5 rounded text-[11px] font-mono">14</span>
+</button>
+<button class="px-space-md py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-body-sm font-medium flex items-center gap-space-xs transition-colors light-bg-card light-text-main light-border border border-white/5">
+<span>Célula</span>
+<span class="bg-surface-container-highest light-bg-subtle text-on-surface-variant light-text-muted px-1.5 py-0.5 rounded text-[11px] font-mono">9</span>
+</button>
+<button class="px-space-md py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-body-sm font-medium flex items-center gap-space-xs transition-colors light-bg-card light-text-main light-border border border-white/5">
+<span>BCM</span>
+<span class="bg-surface-container-highest light-bg-subtle text-on-surface-variant light-text-muted px-1.5 py-0.5 rounded text-[11px] font-mono">5</span>
+</button>
+<button class="px-space-md py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-body-sm font-medium flex items-center gap-space-xs transition-colors light-bg-card light-text-main light-border border border-white/5">
+<span>Importada</span>
+<span class="bg-surface-container-highest light-bg-subtle text-on-surface-variant light-text-muted px-1.5 py-0.5 rounded text-[11px] font-mono">12</span>
+</button>
+<button class="px-space-md py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-body-sm font-medium flex items-center gap-space-xs transition-colors light-bg-card light-text-main light-border border border-white/5">
+<span>Usinagem</span>
+<span class="bg-surface-container-highest light-bg-subtle text-on-surface-variant light-text-muted px-1.5 py-0.5 rounded text-[11px] font-mono">19</span>
+</button>
+</div>
+<!-- Priority Group Legend Indicator -->
+<div class="hidden xl:flex items-center gap-space-md text-on-surface-variant light-text-muted font-label-sm text-label-sm">
+<span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"></span> Lista Vermelha (Crítica)</span>
+<span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Lista Amarela (Comercial)</span>
+<span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-200 border border-slate-400"></span> Lista Branca (Padrão)</span>
+</div>
+</div>
+<!-- BATCH IMPORT MODULAR ACCORDION (UPDATED WITH 7-DIGIT OP, 8-DIGIT MATERIAL & 3 SITUATIONS) -->
+<div class="bg-surface-container-low rounded-xl p-space-lg shadow-xl relative overflow-hidden transition-all duration-300 border border-white/5 light-bg-card light-border" id="batch-panel">
+<div class="flex items-center justify-between pb-space-md">
+<div class="flex items-center gap-space-sm">
+<span class="w-2.5 h-6 bg-primary-container rounded-sm"></span>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold light-text-main">Cadastrar Ordens em Massa (Batch POST to PostgreSQL)</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant light-text-muted">Cole as colunas tabulares copiadas do Excel, ERP ou bloco de notas. OPs com 7 dígitos e materiais com 8 dígitos numéricos.</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-sm text-label-sm bg-surface-container light-bg-subtle px-2 py-1 rounded text-outline light-text-muted font-mono">VALIDAÇÃO ESTREITA PCP</span>
+<button class="text-on-surface-variant hover:text-on-surface p-1 rounded-lg light-text-muted" id="btn-close-batch" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+</div>
+<form class="flex flex-col gap-space-md" id="form-batch" onsubmit="event.preventDefault();">
+<!-- 3-Column Synchronized Matrix Inputs -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<!-- Números das OPs (7 dígitos) -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<label class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface light-text-main flex items-center gap-1 font-semibold">
+<span class="text-primary font-bold">01.</span> OP (7 dígitos por linha)
+</label>
+<span class="font-label-sm text-label-sm text-outline light-text-muted font-mono" id="count-ops">0 linhas</span>
+</div>
+<div class="relative bg-surface-container light-bg-subtle light-border border border-white/5 rounded-lg p-2 flex flex-col focus-within:ring-1 focus-within:ring-primary-container">
+<textarea class="w-full bg-transparent font-label-md text-label-md text-on-surface light-text-main placeholder:text-outline/50 resize-y focus:outline-none leading-relaxed" id="input-ops" placeholder="1131789
+1131790
+1131792" rows="5"></textarea>
+</div>
+<span class="font-body-sm text-body-sm text-outline light-text-muted">Apenas 7 dígitos numéricos por OP.</span>
+</div>
+<!-- Total de peças -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<label class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface light-text-main flex items-center gap-1 font-semibold">
+<span class="text-primary font-bold">02.</span> Total de Peças
+</label>
+<span class="font-label-sm text-label-sm text-outline light-text-muted font-mono" id="count-qtd">0 linhas</span>
+</div>
+<div class="relative bg-surface-container light-bg-subtle light-border border border-white/5 rounded-lg p-2 flex flex-col focus-within:ring-1 focus-within:ring-primary-container">
+<textarea class="w-full bg-transparent font-label-md text-label-md text-on-surface light-text-main placeholder:text-outline/50 resize-y focus:outline-none leading-relaxed" id="input-qtd" placeholder="500
+1200
+350" rows="5"></textarea>
+</div>
+<span class="font-body-sm text-body-sm text-outline light-text-muted">Quantidade correspondente a cada linha.</span>
+</div>
+<!-- Materiais (8 dígitos) -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<label class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface light-text-main flex items-center gap-1 font-semibold">
+<span class="text-primary font-bold">03.</span> Cód. Material (8 dígitos)
+</label>
+<span class="font-label-sm text-label-sm text-outline light-text-muted font-mono" id="count-mat">0 linhas</span>
+</div>
+<div class="relative bg-surface-container light-bg-subtle light-border border border-white/5 rounded-lg p-2 flex flex-col focus-within:ring-1 focus-within:ring-primary-container">
+<textarea class="w-full bg-transparent font-label-md text-label-md text-on-surface light-text-main placeholder:text-outline/50 resize-y focus:outline-none leading-relaxed" id="input-mat" placeholder="90000522
+90001840
+90003115" rows="5"></textarea>
+</div>
+<span class="font-body-sm text-body-sm text-outline light-text-muted">Código estrito de 8 dígitos numéricos Schadek.</span>
+</div>
+</div>
+<!-- Common Metadata Configuration Line -->
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-space-sm pt-space-xs bg-surface-container-high/30 light-bg-subtle p-space-md rounded-lg light-border border border-white/5">
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm uppercase text-outline light-text-muted">Data de Abertura</label>
+<input class="bg-surface-container light-bg-card light-text-main light-border border border-white/5 text-on-surface font-label-sm text-label-sm rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-container" type="date" value="2025-05-18"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm uppercase text-outline light-text-muted">Dia de Análise</label>
+<input class="bg-surface-container light-bg-card light-text-main light-border border border-white/5 text-on-surface font-label-sm text-label-sm rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-container" type="date" value="2025-05-20"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm uppercase text-outline light-text-muted">Setor Industrial</label>
+<select class="bg-surface-container light-bg-card light-text-main light-border border border-white/5 text-on-surface font-body-sm text-body-sm rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-container">
+<option selected="">Montagem</option>
+<option>Subconjunto</option>
+<option>Célula</option>
+<option>BCM</option>
+<option>Importada</option>
+<option>Usinagem</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm uppercase text-outline light-text-muted">Situação da OP</label>
+<select class="bg-surface-container light-bg-card light-text-main light-border border border-white/5 text-on-surface font-body-sm text-body-sm rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-container">
+<option selected="">Falta pagar</option>
+<option>Pago</option>
+<option>Encerrado</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm uppercase text-outline light-text-muted">Prioridade Schadek</label>
+<select class="bg-surface-container light-bg-card light-text-main light-border border border-white/5 text-on-surface font-body-sm text-body-sm rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-container">
+<optgroup class="bg-surface-container-high text-red-500 font-semibold" label="🔴 Lista Vermelha (Crítica)">
+<option class="text-on-surface light-text-main">Exportação</option>
+<option class="text-on-surface light-text-main">KS</option>
+<option class="text-on-surface light-text-main">Marelli</option>
+<option class="text-on-surface light-text-main">MWM</option>
+</optgroup>
+<optgroup class="bg-surface-container-high text-amber-500 font-semibold" label="🟡 Lista Amarela (Comercial)">
+<option class="text-on-surface light-text-main" selected="">Pendência comercial</option>
+</optgroup>
+<optgroup class="bg-surface-container-high text-slate-400 font-semibold" label="⚪ Lista Branca (Padrão)">
+<option class="text-on-surface light-text-main">Linha pesada</option>
+<option class="text-on-surface light-text-main">MRP</option>
+<option class="text-on-surface light-text-main">Tryout</option>
+</optgroup>
+</select>
+</div>
+</div>
+<!-- Action Footer for Batch -->
+<div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-xs">
+<div class="flex items-center gap-space-sm">
+<button class="flex items-center gap-space-xs px-space-md py-2 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-lg text-body-sm font-semibold transition-colors light-bg-subtle light-text-main light-border border border-white/5" id="btn-gen-preview" type="button">
+<span class="material-symbols-outlined text-[18px]">table_view</span>
+<span>Gerar Prévia de Importação</span>
+</button>
+<span class="hidden font-label-sm text-label-sm text-[#10b981] bg-[#10b981]/10 px-2 py-1 rounded" id="preview-tag">✓ OPs (7 dig.) e Materiais (8 dig.) validados!</span>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="px-space-md py-2 text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm light-text-muted" type="reset">
+Limpar Campos
+</button>
+<button class="flex items-center gap-space-xs px-space-lg py-2 bg-primary-container hover:bg-inverse-primary text-on-primary-container rounded-lg font-headline-sm text-body-sm font-bold shadow-lg shadow-primary-container/20 transition-all" id="btn-submit-batch" type="button">
+<span class="material-symbols-outlined text-[18px]">upload</span>
+<span>Confirmar e Cadastrar no PostgreSQL</span>
+</button>
+</div>
+</div>
+</form>
+</div>
+<!-- MAIN WORKBENCH: DENSE DATA TABLE WITH EMBEDDED RETRACTABLE GLASS FILTER DRAWER -->
+<div class="relative flex gap-space-md items-start w-full">
+<!-- PRIMARY TABLE CONTAINER -->
+<div class="flex-1 bg-surface-container-low rounded-xl shadow-md overflow-hidden flex flex-col min-w-0 border border-white/5 light-bg-card light-border">
+<!-- Table Quick Utility Header -->
+<div class="p-space-sm bg-surface-container flex flex-wrap items-center justify-between gap-space-sm light-bg-subtle light-border border-b border-white/5"><div class="flex items-center gap-space-sm flex-1 min-w-[280px]"><div class="relative w-full max-w-sm"><input class="w-full bg-surface-container-low text-on-surface font-body-sm text-body-sm px-space-md py-1.5 pl-8 rounded-lg placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary-container light-bg-card light-text-main light-border border border-white/5 font-mono text-[13px]" placeholder="Filtro rápido visual na tabela..." type="text"/><span class="material-symbols-outlined text-outline text-[16px] absolute left-2.5 top-2 light-text-muted">search</span></div></div><div class="flex items-center gap-space-md text-outline light-text-muted font-label-sm text-label-sm"><span class="flex items-center gap-1 text-amber-400"><span class="material-symbols-outlined text-[15px]">lightbulb</span><span>Duplo clique para editar | Enter salva | Esc cancela</span></span><div class="h-4 w-[1px] bg-surface-container-highest hidden sm:block"></div><div class="flex items-center gap-1 bg-surface-container-low px-2 py-1 rounded-lg light-bg-card light-border border border-white/5"><span class="font-label-sm text-label-sm text-outline light-text-muted">Buffer SAP:</span><span class="font-label-sm text-label-sm text-[#10b981] font-mono font-bold">12 em fila</span></div><button class="p-1.5 hover:bg-surface-container-highest rounded text-on-surface-variant hover:text-on-surface light-text-muted transition-colors" title="Atualizar tabela visual"><span class="material-symbols-outlined text-[18px]">refresh</span></button></div></div>
+<!-- High-Density Industrial Table -->
+<div class="overflow-x-auto w-full">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-lowest text-outline font-label-sm text-label-sm uppercase tracking-wider select-none border-b border-surface-container-highest/40 light-bg-subtle light-text-muted light-border">
+<th class="py-2.5 px-3 w-10 text-center">
+<input class="w-4 h-4 rounded bg-surface-container-high accent-primary-container cursor-pointer" id="check-all" type="checkbox"/>
+</th>
+<th class="py-2.5 px-3 font-semibold cursor-pointer hover:text-primary transition-colors">
+<div class="flex items-center gap-1">
+<span>OP (7 dígitos)</span>
+<span class="material-symbols-outlined text-[14px]">unfold_more</span>
+</div>
+</th>
+<th class="py-2.5 px-3 font-semibold cursor-pointer hover:text-primary transition-colors text-right">
+<div class="flex items-center justify-end gap-1">
+<span>Total Peças</span>
+<span class="material-symbols-outlined text-[14px]">unfold_more</span>
+</div>
+</th>
+<th class="py-2.5 px-3 font-semibold">Data Abertura</th>
+<th class="py-2.5 px-3 font-semibold">Cód. Material (8 dígitos)</th>
+<th class="py-2.5 px-3 font-semibold">Situação</th>
+<th class="py-2.5 px-3 font-semibold">Observação</th>
+<th class="py-2.5 px-3 font-semibold">Setor</th>
+<th class="py-2.5 px-3 font-semibold">Prioridade</th>
+<th class="py-2.5 px-3 font-semibold">Dia Análise</th>
+<th class="py-2.5 px-3 text-center font-semibold w-24">Ações</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-highest/20 font-body-sm text-body-sm text-on-surface light-border light-text-main"><tr class="hover:bg-surface-container/60 dark:hover:bg-surface-container/60 hover:bg-slate-50 transition-colors group cursor-pointer"><td class="py-2 px-3 text-center"><input class="op-checkbox w-4 h-4 rounded bg-surface-container-high accent-primary-container cursor-pointer" type="checkbox"/></td><td class="py-2 px-3 font-mono font-bold text-primary dark:text-primary text-orange-600"><a class="hover:underline flex items-center gap-1" href="#"><span>1131789</span></a></td><td class="py-2 px-3 text-right font-mono font-bold text-on-surface light-text-main">500</td><td class="py-2 px-3 font-mono text-on-surface-variant light-text-muted text-[12px]">03/10/2026</td><td class="py-2 px-3 font-mono font-semibold text-tertiary dark:text-tertiary text-sky-700 tracking-wide"><span class="px-1.5 py-0.5 rounded bg-tertiary/10 text-tertiary font-bold hover:underline cursor-pointer">90000522</span></td><td class="py-2 px-3"><span class="status-pago inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-950/60 text-emerald-300 border border-emerald-500/40"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Pago</span></td><td class="py-2 px-3 max-w-[160px] truncate text-on-surface-variant light-text-muted text-[12px] group-hover:text-on-surface" title="Clique duas vezes para editar">--</td><td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-surface-container-highest light-bg-subtle text-on-surface light-text-main font-label-sm text-label-sm border border-transparent light-border">Célula</span></td><td class="py-2 px-3">--</td><td class="py-2 px-3 font-mono text-on-surface-variant light-text-muted text-[12px]">12/10/2026</td><td class="py-2 px-3 text-center"><button class="p-1 hover:bg-surface-container-highest rounded text-on-surface-variant light-text-muted hover:text-error transition-colors" title="Excluir OP"><span class="material-symbols-outlined text-[16px]">delete</span></button></td></tr><tr class="hover:bg-surface-container/60 dark:hover:bg-surface-container/60 hover:bg-slate-50 transition-colors group cursor-pointer"><td class="py-2 px-3 text-center"><input class="op-checkbox w-4 h-4 rounded bg-surface-container-high accent-primary-container cursor-pointer" type="checkbox"/></td><td class="py-2 px-3 font-mono font-bold text-primary dark:text-primary text-orange-600"><a class="hover:underline flex items-center gap-1" href="#"><span>1132206</span></a></td><td class="py-2 px-3 text-right font-mono font-bold text-on-surface light-text-main">64</td><td class="py-2 px-3 font-mono text-on-surface-variant light-text-muted text-[12px]">02/10/2026</td><td class="py-2 px-3 font-mono font-semibold text-tertiary dark:text-tertiary text-sky-700 tracking-wide"><span class="px-1.5 py-0.5 rounded bg-tertiary/10 text-tertiary font-bold hover:underline cursor-pointer">90003336</span></td><td class="py-2 px-3"><span class="status-falta-pagar inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-950/60 text-red-300 border border-red-500/40 shadow-sm"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>Falta Pagar</span></td><td class="py-2 px-3 max-w-[160px] truncate text-on-surface-variant light-text-muted text-[12px] group-hover:text-on-surface" title="Clique duas vezes para editar">--</td><td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-surface-container-highest light-bg-subtle text-on-surface light-text-main font-label-sm text-label-sm border border-transparent light-border">BCM</span></td><td class="py-2 px-3">--</td><td class="py-2 px-3 font-mono text-on-surface-variant light-text-muted text-[12px]">02/10/2026</td><td class="py-2 px-3 text-center"><button class="p-1 hover:bg-surface-container-highest rounded text-on-surface-variant light-text-muted hover:text-error transition-colors" title="Excluir OP"><span class="material-symbols-outlined text-[16px]">delete</span></button></td></tr><tr class="hover:bg-surface-container/60 dark:hover:bg-surface-container/60 hover:bg-slate-50 transition-colors group cursor-pointer"><td class="py-2 px-3 text-center"><input class="op-checkbox w-4 h-4 rounded bg-surface-container-high accent-primary-container cursor-pointer" type="checkbox"/></td><td class="py-2 px-3 font-mono font-bold text-primary dark:text-primary text-orange-600"><a class="hover:underline flex items-center gap-1" href="#"><span>1132208</span></a></td><td class="py-2 px-3 text-right font-mono font-bold text-on-surface light-text-main">800</td><td class="py-2 px-3 font-mono text-on-surface-variant light-text-muted text-[12px]">02/10/2026</td><td class="py-2 px-3 font-mono font-semibold text-tertiary dark:text-tertiary text-sky-700 tracking-wide"><span class="px-1.5 py-0.5 rounded bg-tertiary/10 text-tertiary font-bold hover:underline cursor-pointer">90002627</span></td><td class="py-2 px-3"><span class="status-falta-pagar inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-950/60 text-red-300 border border-red-500/40 shadow-sm"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>Falta Pagar</span></td><td class="py-2 px-3 max-w-[160px] truncate text-on-surface-variant light-text-muted text-[12px] group-hover:text-on-surface" title="Clique duas vezes para editar">--</td><td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-surface-container-highest light-bg-subtle text-on-surface light-text-main font-label-sm text-label-sm border border-transparent light-border">BCM</span></td><td class="py-2 px-3">--</td><td class="py-2 px-3 font-mono text-on-surface-variant light-text-muted text-[12px]">02/10/2026</td><td class="py-2 px-3 text-center"><button class="p-1 hover:bg-surface-container-highest rounded text-on-surface-variant light-text-muted hover:text-error transition-colors" title="Excluir OP"><span class="material-symbols-outlined text-[16px]">delete</span></button></td></tr><tr class="hover:bg-surface-container/60 dark:hover:bg-surface-container/60 hover:bg-slate-50 transition-colors group cursor-pointer"><td class="py-2 px-3 text-center"><input class="op-checkbox w-4 h-4 rounded bg-surface-container-high accent-primary-container cursor-pointer" type="checkbox"/></td><td class="py-2 px-3 font-mono font-bold text-primary dark:text-primary text-orange-600"><a class="hover:underline flex items-center gap-1" href="#"><span>1132207</span></a></td><td class="py-2 px-3 text-right font-mono font-bold text-on-surface light-text-main">1200</td><td class="py-2 px-3 font-mono text-on-surface-variant light-text-muted text-[12px]">02/10/2026</td><td class="py-2 px-3 font-mono font-semibold text-tertiary dark:text-tertiary text-sky-700 tracking-wide"><span class="px-1.5 py-0.5 rounded bg-tertiary/10 text-tertiary font-bold hover:underline cursor-pointer">90002612</span></td><td class="py-2 px-3"><span class="status-falta-pagar inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-950/60 text-red-300 border border-red-500/40 shadow-sm"><span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>Falta Pagar</span></td><td class="py-2 px-3 max-w-[160px] truncate text-on-surface-variant light-text-muted text-[12px] group-hover:text-on-surface" title="Clique duas vezes para editar">--</td><td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-surface-container-highest light-bg-subtle text-on-surface light-text-main font-label-sm text-label-sm border border-transparent light-border">BCM</span></td><td class="py-2 px-3">--</td><td class="py-2 px-3 font-mono text-on-surface-variant light-text-muted text-[12px]">02/10/2026</td><td class="py-2 px-3 text-center"><button class="p-1 hover:bg-surface-container-highest rounded text-on-surface-variant light-text-muted hover:text-error transition-colors" title="Excluir OP"><span class="material-symbols-outlined text-[16px]">delete</span></button></td></tr><tr class="hover:bg-surface-container/60 dark:hover:bg-surface-container/60 hover:bg-slate-50 transition-colors group cursor-pointer"><td class="py-2 px-3 text-center"><input class="op-checkbox w-4 h-4 rounded bg-surface-container-high accent-primary-container cursor-pointer" type="checkbox"/></td><td class="py-2 px-3 font-mono font-bold text-primary dark:text-primary text-orange-600"><a class="hover:underline flex items-center gap-1" href="#"><span>1132150</span></a></td><td class="py-2 px-3 text-right font-mono font-bold text-on-surface light-text-main">1300</td><td class="py-2 px-3 font-mono text-on-surface-variant light-text-muted text-[12px]">01/10/2026</td><td class="py-2 px-3 font-mono font-semibold text-tertiary dark:text-tertiary text-sky-700 tracking-wide"><span class="px-1.5 py-0.5 rounded bg-tertiary/10 text-tertiary font-bold hover:underline cursor-pointer">40005829</span></td><td class="py-2 px-3"><span class="status-pago inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-950/60 text-emerald-300 border border-emerald-500/40"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Pago</span></td><td class="py-2 px-3 max-w-[160px] truncate text-on-surface-variant light-text-muted text-[12px] group-hover:text-on-surface" title="Clique duas vezes para editar">--</td><td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-surface-container-highest light-bg-subtle text-on-surface light-text-main font-label-sm text-label-sm border border-transparent light-border">Subconjunto</span></td><td class="py-2 px-3">--</td><td class="py-2 px-3 font-mono text-on-surface-variant light-text-muted text-[12px]">12/10/2026</td><td class="py-2 px-3 text-center"><button class="p-1 hover:bg-surface-container-highest rounded text-on-surface-variant light-text-muted hover:text-error transition-colors" title="Excluir OP"><span class="material-symbols-outlined text-[16px]">delete</span></button></td></tr><tr class="hover:bg-surface-container/60 dark:hover:bg-surface-container/60 hover:bg-slate-50 transition-colors group cursor-pointer"><td class="py-2 px-3 text-center"><input class="op-checkbox w-4 h-4 rounded bg-surface-container-high accent-primary-container cursor-pointer" type="checkbox"/></td><td class="py-2 px-3 font-mono font-bold text-primary dark:text-primary text-orange-600"><a class="hover:underline flex items-center gap-1" href="#"><span>1131581</span></a></td><td class="py-2 px-3 text-right font-mono font-bold text-on-surface light-text-main">100</td><td class="py-2 px-3 font-mono text-on-surface-variant light-text-muted text-[12px]">21/09/2026</td><td class="py-2 px-3 font-mono font-semibold text-tertiary dark:text-tertiary text-sky-700 tracking-wide"><span class="px-1.5 py-0.5 rounded bg-tertiary/10 text-tertiary font-bold hover:underline cursor-pointer">90000115</span></td><td class="py-2 px-3"><span class="status-pago inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-950/60 text-emerald-300 border border-emerald-500/40"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Pago</span></td><td class="py-2 px-3 max-w-[160px] truncate text-on-surface-variant light-text-muted text-[12px] group-hover:text-on-surface" title="Clique duas vezes para editar">--</td><td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-surface-container-highest light-bg-subtle text-on-surface light-text-main font-label-sm text-label-sm border border-transparent light-border">Montagem</span></td><td class="py-2 px-3"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-amber-950/70 dark:bg-amber-950/70 bg-amber-100 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Pendência Comercial</span></td><td class="py-2 px-3 font-mono text-on-surface-variant light-text-muted text-[12px]">12/10/2026</td><td class="py-2 px-3 text-center"><button class="p-1 hover:bg-surface-container-highest rounded text-on-surface-variant light-text-muted hover:text-error transition-colors" title="Excluir OP"><span class="material-symbols-outlined text-[16px]">delete</span></button></td></tr></tbody>
+</table>
+</div>
+<!-- ENTERPRISE FOOTER PAGINATION & TELEMETRY -->
+<div class="p-space-sm bg-surface-container-lowest light-bg-subtle flex flex-col sm:flex-row items-center justify-between gap-space-sm text-outline light-text-muted font-body-sm text-body-sm border-t border-surface-container-highest/20 light-border">
+<div class="flex items-center gap-space-md">
+<span class="font-label-sm text-label-sm">Mostrando <strong class="text-on-surface light-text-main font-mono">1–6</strong> de <strong class="text-on-surface light-text-main font-mono">184</strong> Ordens</span>
+<div class="flex items-center gap-1 font-label-sm text-label-sm">
+<span>Exibir:</span>
+<select class="bg-surface-container light-bg-card light-text-main light-border border border-white/5 text-on-surface font-mono text-[12px] rounded px-1.5 py-0.5 focus:outline-none">
+<option selected="">10</option>
+<option>25</option>
+<option>50</option>
+<option>100</option>
+</select>
+</div>
+</div>
+<div class="flex items-center gap-1 font-mono text-[12px]">
+<button class="p-1 rounded hover:bg-surface-container light-hover-subtle text-outline light-text-muted hover:text-on-surface">
+<span class="material-symbols-outlined text-[16px]">first_page</span>
+</button>
+<button class="p-1 rounded hover:bg-surface-container light-hover-subtle text-outline light-text-muted hover:text-on-surface">
+<span class="material-symbols-outlined text-[16px]">chevron_left</span>
+</button>
+<button class="w-7 h-7 rounded bg-primary-container text-on-primary-container font-bold flex items-center justify-center">1</button>
+<button class="w-7 h-7 rounded hover:bg-surface-container light-hover-subtle text-on-surface light-text-main flex items-center justify-center">2</button>
+<button class="w-7 h-7 rounded hover:bg-surface-container light-hover-subtle text-on-surface light-text-main flex items-center justify-center">3</button>
+<span class="px-1 text-outline light-text-muted">...</span>
+<button class="w-7 h-7 rounded hover:bg-surface-container light-hover-subtle text-on-surface light-text-main flex items-center justify-center">19</button>
+<button class="p-1 rounded hover:bg-surface-container light-hover-subtle text-outline light-text-muted hover:text-on-surface">
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</button>
+<button class="p-1 rounded hover:bg-surface-container light-hover-subtle text-outline light-text-muted hover:text-on-surface">
+<span class="material-symbols-outlined text-[16px]">last_page</span>
+</button>
+</div>
+</div>
+</div>
+<!-- RETRACTABLE GLASS FLY-OUT FILTER DRAWER -->
+<div class="w-80 bg-surface-container-low/90 light-bg-card backdrop-blur-xl border border-white/10 light-border p-space-md rounded-2xl shadow-2xl flex flex-col gap-space-md transition-all duration-300" id="filter-drawer">
+<!-- Drawer Header -->
+<div class="flex items-center justify-between pb-space-xs border-b border-surface-container-highest/40 light-border">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[20px]">tune</span>
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold light-text-main">Filtros Rápidos</span>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface p-1 rounded-lg light-text-muted" id="btn-minimize-drawer" onclick="toggleDrawer()" title="Ocultar Painel">
+<span class="material-symbols-outlined text-[18px]">dock_to_right</span>
+</button>
+</div>
+<!-- Priority Filter Grouped by Strict Color Lists -->
+<div class="flex flex-col gap-space-xs bg-surface-container-high/30 light-bg-subtle p-2.5 rounded-xl border border-white/5 light-border"><div class="flex items-center justify-between"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline light-text-muted flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-primary">calendar_month</span><span>Filtro de Data (Estilo Excel)</span></span><span class="font-label-sm text-label-sm text-primary font-mono text-[10px] bg-primary/10 px-1.5 py-0.5 rounded">Excel Tree</span></div><div class="grid grid-cols-3 gap-1 pt-1"><button class="py-1 px-1.5 rounded bg-primary-container text-on-primary-container text-[11px] font-semibold text-center" type="button">Mês</button><button class="py-1 px-1.5 rounded bg-surface-container hover:bg-surface-container-high text-on-surface text-[11px] font-medium text-center light-bg-card" type="button">Dias</button><button class="py-1 px-1.5 rounded bg-surface-container hover:bg-surface-container-high text-on-surface text-[11px] font-medium text-center light-bg-card" type="button">Presets</button></div><div class="flex items-center gap-1 flex-wrap pt-1"><button class="px-2 py-0.5 rounded-full text-[10px] bg-surface-container hover:bg-surface-container-high text-on-surface light-bg-card border border-white/5">Este Mês</button><button class="px-2 py-0.5 rounded-full text-[10px] bg-surface-container hover:bg-surface-container-high text-on-surface light-bg-card border border-white/5">Mês Anterior</button><button class="px-2 py-0.5 rounded-full text-[10px] bg-surface-container hover:bg-surface-container-high text-on-surface light-bg-card border border-white/5">Hoje</button><button class="px-2 py-0.5 rounded-full text-[10px] bg-surface-container hover:bg-surface-container-high text-on-surface light-bg-card border border-white/5">Últimos 7 dias</button></div><div class="bg-surface-container-lowest/80 light-bg-card border border-white/5 light-border rounded-lg p-2 font-mono text-[12px] flex flex-col gap-1 max-h-40 overflow-y-auto"><div class="flex items-center gap-1.5 cursor-pointer"><span class="material-symbols-outlined text-[14px] text-outline">arrow_drop_down</span><input checked="" class="accent-primary-container rounded w-3.5 h-3.5" type="checkbox"/><span class="font-bold text-on-surface light-text-main">2026 (Ano)</span></div><div class="pl-4 flex flex-col gap-1"><div class="flex items-center gap-1.5 cursor-pointer"><span class="material-symbols-outlined text-[14px] text-outline">arrow_drop_down</span><input checked="" class="accent-primary-container rounded w-3.5 h-3.5" type="checkbox"/><span class="font-semibold text-primary">Fevereiro (Fev)</span><span class="text-[10px] text-outline">(10 OPs)</span></div><div class="pl-4 flex flex-col gap-0.5 text-[11px]"><label class="flex items-center gap-1.5 cursor-pointer text-on-surface-variant hover:text-on-surface"><input checked="" class="accent-primary-container rounded w-3 h-3" type="checkbox"/><span>18/02/2026 (5 OPs)</span></label><label class="flex items-center gap-1.5 cursor-pointer text-on-surface-variant hover:text-on-surface"><input checked="" class="accent-primary-container rounded w-3 h-3" type="checkbox"/><span>17/02/2026 (3 OPs)</span></label><label class="flex items-center gap-1.5 cursor-pointer text-on-surface-variant hover:text-on-surface"><input checked="" class="accent-primary-container rounded w-3 h-3" type="checkbox"/><span>16/02/2026 (2 OPs)</span></label></div><div class="flex items-center gap-1.5 cursor-pointer text-outline hover:text-on-surface"><span class="material-symbols-outlined text-[14px]">arrow_right</span><input class="accent-primary-container rounded w-3.5 h-3.5" type="checkbox"/><span>Janeiro (Jan)</span><span class="text-[10px]">(12 OPs)</span></div></div><div class="flex items-center gap-1.5 cursor-pointer text-outline hover:text-on-surface"><span class="material-symbols-outlined text-[14px]">arrow_right</span><input class="accent-primary-container rounded w-3.5 h-3.5" type="checkbox"/><span>2025 (Ano)</span><span class="text-[10px]">(162 OPs)</span></div></div><div class="grid grid-cols-2 gap-1 pt-1"><div class="flex flex-col gap-0.5"><span class="text-[10px] text-outline uppercase">De</span><input class="bg-surface-container light-bg-card light-text-main text-on-surface font-mono text-[11px] rounded p-1 border border-white/5 focus:outline-none" type="date" value="2026-02-01"/></div><div class="flex flex-col gap-0.5"><span class="text-[10px] text-outline uppercase">Até</span><input class="bg-surface-container light-bg-card light-text-main text-on-surface font-mono text-[11px] rounded p-1 border border-white/5 focus:outline-none" type="date" value="2026-02-28"/></div></div><button class="w-full py-1 rounded bg-surface-container hover:bg-surface-container-high text-primary font-semibold text-[11px] text-center border border-primary/20 hover:border-primary transition-colors" type="button">Aplicar Filtro de Data</button></div><div class="flex flex-col gap-space-xs">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline light-text-muted">Listas de Prioridade</span>
+<div class="flex flex-col gap-2 font-body-sm text-body-sm">
+<!-- Lista Vermelha -->
+<div class="bg-red-950/30 dark:bg-red-950/30 bg-red-50 border border-red-500/30 dark:border-red-500/30 border-red-200 p-2 rounded-lg flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<span class="text-xs font-bold text-red-500 dark:text-red-400 flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]"></span> Lista Vermelha (Crítica)
+</span>
+<span class="font-mono text-[11px] text-red-600 dark:text-red-300 font-semibold">4</span>
+</div>
+<div class="grid grid-cols-2 gap-1 text-[12px]">
+<label class="flex items-center gap-1.5 text-on-surface light-text-main cursor-pointer">
+<input checked="" class="accent-red-500 rounded" type="checkbox"/>
+<span>Exportação</span>
+</label>
+<label class="flex items-center gap-1.5 text-on-surface light-text-main cursor-pointer">
+<input checked="" class="accent-red-500 rounded" type="checkbox"/>
+<span>KS</span>
+</label>
+<label class="flex items-center gap-1.5 text-on-surface light-text-main cursor-pointer">
+<input checked="" class="accent-red-500 rounded" type="checkbox"/>
+<span>Marelli</span>
+</label>
+<label class="flex items-center gap-1.5 text-on-surface light-text-main cursor-pointer">
+<input checked="" class="accent-red-500 rounded" type="checkbox"/>
+<span>MWM</span>
+</label>
+</div>
+</div>
+<!-- Lista Amarela -->
+<div class="bg-amber-950/30 dark:bg-amber-950/30 bg-amber-50 border border-amber-500/30 dark:border-amber-500/30 border-amber-200 p-2 rounded-lg flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<span class="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-amber-400"></span> Lista Amarela (Comercial)
+</span>
+<span class="font-mono text-[11px] text-amber-700 dark:text-amber-300 font-semibold">1</span>
+</div>
+<label class="flex items-center gap-1.5 text-on-surface light-text-main text-[12px] cursor-pointer">
+<input checked="" class="accent-amber-400 rounded" type="checkbox"/>
+<span>Pendência comercial</span>
+</label>
+</div>
+<!-- Lista Branca -->
+<div class="bg-slate-900/60 dark:bg-slate-900/60 bg-slate-100 border border-slate-400/30 dark:border-slate-400/30 border-slate-200 p-2 rounded-lg flex flex-col gap-1.5">
+<div class="flex items-center justify-between">
+<span class="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-100"></span> Lista Branca (Padrão)
+</span>
+<span class="font-mono text-[11px] text-slate-600 dark:text-slate-300 font-semibold">3</span>
+</div>
+<div class="grid grid-cols-3 gap-1 text-[12px]">
+<label class="flex items-center gap-1.5 text-on-surface light-text-main cursor-pointer">
+<input checked="" class="accent-slate-400 rounded" type="checkbox"/>
+<span>Linha pesada</span>
+</label>
+<label class="flex items-center gap-1.5 text-on-surface light-text-main cursor-pointer">
+<input checked="" class="accent-slate-400 rounded" type="checkbox"/>
+<span>MRP</span>
+</label>
+<label class="flex items-center gap-1.5 text-on-surface light-text-main cursor-pointer">
+<input checked="" class="accent-slate-400 rounded" type="checkbox"/>
+<span>Tryout</span>
+</label>
+</div>
+</div>
+</div>
+</div>
+<!-- Situation / Status (Exclusively: Falta pagar, Pago, Encerrado) -->
+<div class="flex flex-col gap-space-xs">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline light-text-muted">Situação da OP</span>
+<div class="flex flex-col gap-1 text-[13px]">
+<label class="flex items-center justify-between p-2 bg-surface-container/50 light-bg-subtle rounded-lg cursor-pointer hover:bg-surface-container border border-red-500/20 light-border">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-red-500"></span>
+<span class="text-on-surface light-text-main font-medium">Falta pagar</span>
+</div>
+<span class="font-mono text-red-600 dark:text-red-300 text-[11px] font-bold">38</span>
+</label>
+<label class="flex items-center justify-between p-2 bg-surface-container/50 light-bg-subtle rounded-lg cursor-pointer hover:bg-surface-container border border-emerald-500/20 light-border">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+<span class="text-on-surface light-text-main font-medium">Pago</span>
+</div>
+<span class="font-mono text-emerald-600 dark:text-emerald-300 text-[11px] font-bold">116</span>
+</label>
+<label class="flex items-center justify-between p-2 bg-surface-container/50 light-bg-subtle rounded-lg cursor-pointer hover:bg-surface-container border border-slate-600/30 light-border">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-slate-400"></span>
+<span class="text-on-surface light-text-main font-medium">Encerrado</span>
+</div>
+<span class="font-mono text-slate-600 dark:text-slate-300 text-[11px] font-bold">30</span>
+</label>
+</div>
+</div>
+<!-- Sector Selector (Strict 6 Sectors) -->
+<div class="flex flex-col gap-space-xs">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline light-text-muted">Setor Produtivo (6 Setores)</span>
+<div class="grid grid-cols-2 gap-1.5 font-body-sm text-body-sm">
+<label class="flex items-center gap-2 p-1.5 bg-surface-container/60 light-bg-subtle light-border border border-transparent hover:bg-surface-container rounded cursor-pointer">
+<input checked="" class="accent-primary-container" type="checkbox"/>
+<span class="text-on-surface light-text-main text-[13px]">Montagem</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 bg-surface-container/60 light-bg-subtle light-border border border-transparent hover:bg-surface-container rounded cursor-pointer">
+<input checked="" class="accent-primary-container" type="checkbox"/>
+<span class="text-on-surface light-text-main text-[13px]">Subconjunto</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 bg-surface-container/60 light-bg-subtle light-border border border-transparent hover:bg-surface-container rounded cursor-pointer">
+<input checked="" class="accent-primary-container" type="checkbox"/>
+<span class="text-on-surface light-text-main text-[13px]">Célula</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 bg-surface-container/60 light-bg-subtle light-border border border-transparent hover:bg-surface-container rounded cursor-pointer">
+<input checked="" class="accent-primary-container" type="checkbox"/>
+<span class="text-on-surface light-text-main text-[13px]">BCM</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 bg-surface-container/60 light-bg-subtle light-border border border-transparent hover:bg-surface-container rounded cursor-pointer">
+<input checked="" class="accent-primary-container" type="checkbox"/>
+<span class="text-on-surface light-text-main text-[13px]">Importada</span>
+</label>
+<label class="flex items-center gap-2 p-1.5 bg-surface-container/60 light-bg-subtle light-border border border-transparent hover:bg-surface-container rounded cursor-pointer">
+<input checked="" class="accent-primary-container" type="checkbox"/>
+<span class="text-on-surface light-text-main text-[13px]">Usinagem</span>
+</label>
+</div>
+</div>
+<!-- Date Range Filter -->
+<div class="flex flex-col gap-space-xs">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline light-text-muted">Período de Abertura</span>
+<div class="grid grid-cols-2 gap-1">
+<input class="bg-surface-container light-bg-subtle light-border border border-white/5 text-on-surface light-text-main font-mono text-[11px] rounded p-1.5 focus:outline-none" type="date" value="2025-05-01"/>
+<input class="bg-surface-container light-bg-subtle light-border border border-white/5 text-on-surface light-text-main font-mono text-[11px] rounded p-1.5 focus:outline-none" type="date" value="2025-05-31"/>
+</div>
+</div>
+<!-- Apply & Reset Buttons -->
+<div class="flex items-center gap-space-xs pt-space-xs border-t border-surface-container-highest/30 light-border">
+<button class="flex-1 py-1.5 rounded bg-primary-container text-on-primary-container font-headline-sm text-body-sm font-bold text-center shadow-md">
+Aplicar Filtros
+</button>
+<button class="px-3 py-1.5 rounded bg-surface-container light-bg-subtle text-on-surface-variant hover:text-on-surface font-body-sm text-body-sm light-text-muted">
+Reset
+</button>
+</div>
+<!-- System Signature -->
+<div class="p-space-xs bg-surface-container-lowest/60 light-bg-subtle rounded-xl flex items-center justify-between text-[11px] text-outline light-text-muted light-border border border-white/5">
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-primary"></span> Schadek Sync</span>
+<span class="font-mono">v4.9.0-PROD</span>
+</div>
+</div>
+</div>
+<!-- FLOATING TOAST NOTIFICATION FOR SAP INTEGRATION -->
+<div class="fixed bottom-6 right-6 bg-surface-container-highest/95 backdrop-blur-md text-on-surface border border-white/10 px-space-md py-space-sm rounded-xl shadow-2xl flex items-center gap-space-md z-50 transform translate-y-32 transition-transform duration-300 light-bg-card light-text-main light-border" id="toast-sap">
+<div class="w-9 h-9 rounded-lg bg-primary-container flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined text-[20px]">content_copy</span>
+</div>
+<div class="flex flex-col">
+<span class="font-headline-sm text-body-md font-bold text-on-surface light-text-main">OPs Copiadas com Sucesso!</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant light-text-muted">OPs de 7 dígitos e códigos de 8 dígitos formatados para SAP COOIS.</span>
+</div>
+<button class="text-outline hover:text-on-surface ml-2 light-text-muted" onclick="document.getElementById('toast-sap').classList.add('translate-y-32')">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+</div>
+<!-- INTERACTIVE SCRIPTS FOR COLLAPSIBLE SIDEBAR & DARK/LIGHT MODE TOGGLE -->
+<script>
+  // 1. COLLAPSIBLE SIDEBAR LOGIC
+  const sidebar = document.getElementById('sidebar');
+  const mainWrapper = document.getElementById('main-content-wrapper');
+  const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+  const sidebarIcon = document.getElementById('sidebar-toggle-icon');
+  let isSidebarCollapsed = false;
+
+  btnToggleSidebar.addEventListener('click', () => {
+    isSidebarCollapsed = !isSidebarCollapsed;
+    if (isSidebarCollapsed) {
+      sidebar.classList.remove('w-64');
+      sidebar.classList.add('w-[72px]', 'sidebar-collapsed');
+      mainWrapper.classList.remove('pl-64');
+      mainWrapper.classList.add('pl-[72px]');
+      sidebarIcon.innerText = 'menu';
+    } else {
+      sidebar.classList.remove('w-[72px]', 'sidebar-collapsed');
+      sidebar.classList.add('w-64');
+      mainWrapper.classList.remove('pl-[72px]');
+      mainWrapper.classList.add('pl-64');
+      sidebarIcon.innerText = 'menu_open';
+    }
+  });
+
+  // 2. THEME TOGGLE LOGIC (DARK / LIGHT)
+  const btnThemeToggle = document.getElementById('btn-theme-toggle');
+  const themeIcon = document.getElementById('theme-icon');
+  const themeText = document.getElementById('theme-text');
+  const htmlRoot = document.documentElement;
+
+  btnThemeToggle.addEventListener('click', () => {
+    htmlRoot.classList.toggle('dark');
+    const isDark = htmlRoot.classList.contains('dark');
+    if (isDark) {
+      themeIcon.innerText = 'dark_mode';
+      themeIcon.className = 'material-symbols-outlined text-[20px] text-amber-400';
+      themeText.innerText = 'Modo Escuro';
+    } else {
+      themeIcon.innerText = 'light_mode';
+      themeIcon.className = 'material-symbols-outlined text-[20px] text-orange-500';
+      themeText.innerText = 'Modo Claro';
+    }
+  });
+
+  // 3. BATCH COUNTERS
+  const txtOps = document.getElementById('input-ops');
+  const txtQtd = document.getElementById('input-qtd');
+  const txtMat = document.getElementById('input-mat');
+
+  function updateLines() {
+    const linesOps = txtOps.value.split('\n').filter(l => l.trim().length > 0).length;
+    const linesQtd = txtQtd.value.split('\n').filter(l => l.trim().length > 0).length;
+    const linesMat = txtMat.value.split('\n').filter(l => l.trim().length > 0).length;
+
+    document.getElementById('count-ops').innerText = linesOps + ' linhas';
+    document.getElementById('count-qtd').innerText = linesQtd + ' linhas';
+    document.getElementById('count-mat').innerText = linesMat + ' linhas';
+  }
+
+  [txtOps, txtQtd, txtMat].forEach(el => el.addEventListener('input', updateLines));
+
+  // Toggle Batch Panel
+  const btnToggleBatch = document.getElementById('btn-toggle-batch');
+  const btnCloseBatch = document.getElementById('btn-close-batch');
+  const batchPanel = document.getElementById('batch-panel');
+
+  function toggleBatch() {
+    batchPanel.classList.toggle('hidden');
+  }
+
+  btnToggleBatch.addEventListener('click', toggleBatch);
+  btnCloseBatch.addEventListener('click', toggleBatch);
+
+  // Toggle Retractable Filter Drawer
+  const btnToggleFilters = document.getElementById('btn-toggle-filters');
+  const filterDrawer = document.getElementById('filter-drawer');
+
+  function toggleDrawer() {
+    filterDrawer.classList.toggle('hidden');
+  }
+
+  btnToggleFilters.addEventListener('click', toggleDrawer);
+
+  // Preview Generation Trigger
+  const btnPreview = document.getElementById('btn-gen-preview');
+  const previewTag = document.getElementById('preview-tag');
+
+  btnPreview.addEventListener('click', () => {
+    previewTag.classList.remove('hidden');
+    previewTag.innerText = "✓ Validado: OPs (7 dígitos) e Materiais (8 dígitos) OK";
+  });
+
+  // Check all functionality
+  const checkAll = document.getElementById('check-all');
+  const rowChecks = document.querySelectorAll('.op-checkbox');
+
+  checkAll.addEventListener('change', () => {
+    rowChecks.forEach(cb => cb.checked = checkAll.checked);
+  });
+
+  // Copy OPs to SAP feedback
+  const btnCopySap = document.getElementById('btn-copy-sap');
+  const toastSap = document.getElementById('toast-sap');
+
+  btnCopySap.addEventListener('click', () => {
+    toastSap.classList.remove('translate-y-32');
+    setTimeout(() => {
+      toastSap.classList.add('translate-y-32');
+    }, 4500);
+  });
+</script></main></div></body></html>
