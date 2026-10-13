@@ -869,12 +869,17 @@ function mostrarToast(titulo, desc) {
 // ===== FUNÇÕES DE FILTROS AVANÇADOS =====
 function aplicarFiltrosAvancados() {
     var filtradas = ordensCarregadas.filter(function(ordem) {
-        // Filtro por prioridade
-        if (!filtrosAvancados.prioridades[ordem.prioridade]) return false;
-        // Filtro por status
-        if (!filtrosAvancados.status[ordem.situacao]) return false;
-        // Filtro por setor
-        if (!filtrosAvancados.setores[ordem.setor]) return false;
+        var prio = ordem.prioridade;
+        var stat = ordem.situacao;
+        var sect = ordem.setor;
+
+        // Prioridade: passa se NULL/undefined OU se está na lista permitida
+        if (prio !== null && prio !== undefined && !filtrosAvancados.prioridades[prio]) return false;
+        // Status: passa se NULL/undefined OU se está na lista
+        if (stat !== null && stat !== undefined && !filtrosAvancados.status[stat]) return false;
+        // Setor: passa se NULL/undefined OU se está na lista
+        if (sect !== null && sect !== undefined && !filtrosAvancados.setores[sect]) return false;
+
         // Filtro por data de abertura
         if (filtrosAvancados.dataInicio || filtrosAvancados.dataFim) {
             var dataAbertura = ordem.data_abertura ? ordem.data_abertura.substring(0, 10) : null;
