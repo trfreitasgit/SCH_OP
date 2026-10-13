@@ -3,12 +3,118 @@ var express = require('express');
 var app = express();
 var { Pool } = require('pg');
 var cors = require('cors');
+var cookieParser = require('cookie-parser');
+var fetch = require('node-fetch');
 
 app.use(express.json());
-app.use(cors());
-app.use(express.static('C:/Users/tiago/Desktop/Projeto/ordens_producao'));
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+}));
+app.use(cookieParser());
 
-app.get('/', function(req, res) {
+const AUTH_API_URL = process.env.AUTH_API_URL || 'http://localhost:3001';
+
+async function verifyTokenWithAuthServer(token) {
+    try {
+        const response = await fetch(`${AUTH_API_URL}/auth/me`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) return null;
+        return await response.json();
+    } catch {
+        return null;
+    }
+}
+
+function isApiRequest(req) {
+    return req.headers.accept?.includes('application/json') ||
+           req.headers['x-requested-with'] === 'XMLHttpRequest' ||
+           req.path.startsWith('/api/') ||
+           req.path.startsWith('/ordens') ||
+           req.path.startsWith('/auth/');
+}
+
+function requireAuth(req, res, next) {
+    const authHeader = req.headers.authorization;
+    const cookieToken = req.cookies?.access_token;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : cookieToken;
+
+    if (!token) {
+        if (isApiRequest(req)) {
+            return res.status(401).json({ error: 'Token de acesso não fornecido' });
+        }
+        return res.redirect(302, '/login');
+    }
+
+    verifyTokenWithAuthServer(token).then(user => {
+        if (!user) {
+            if (isApiRequest(req)) {
+                return res.status(401).json({ error: 'Token inválido ou expirado' });
+            }
+            return res.redirect(302, '/login');
+        }
+        req.user = user;
+        next();
+    }).catch(() => {
+        if (isApiRequest(req)) {
+            return res.status(401).json({ error: 'Erro ao validar token' });
+        }
+        return res.redirect(302, '/login');
+    });
+}
+
+async function proxyAuthRequest(req, res) {
+    const path = req.path.replace('/auth', '');
+    const url = `${AUTH_API_URL}/auth${path}`;
+    
+    try {
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+        
+        // Forward Authorization header if present
+        if (req.headers.authorization) {
+            headers['Authorization'] = req.headers.authorization;
+        }
+        
+        // Forward cookies if present
+        if (req.headers.cookie) {
+            headers['Cookie'] = req.headers.cookie;
+        }
+        
+        const response = await fetch(url, {
+            method: req.method,
+            headers: headers,
+            body: req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined,
+            credentials: 'include'
+        });
+
+        const setCookies = response.headers.getSetCookie?.() || 
+            response.headers.raw()['set-cookie'] || 
+            [response.headers.get('set-cookie')].filter(Boolean);
+        if (setCookies.length > 0) {
+            res.setHeader('set-cookie', setCookies);
+        }
+
+        const data = await response.json();
+        res.status(response.status).json(data);
+    } catch (error) {
+        console.error('Auth proxy error:', error);
+        res.status(502).json({ error: 'Erro ao comunicar com servidor de autenticação' });
+    }
+}
+
+app.get('/login', function(req, res) {
+    res.sendFile('C:/Users/tiago/Desktop/Projeto/ordens_producao/login.html');
+});
+
+// Proxy auth routes
+app.use('/auth', proxyAuthRequest);
+
+app.get('/', requireAuth, function(req, res) {
     res.sendFile('C:/Users/tiago/Desktop/Projeto/ordens_producao/ordens.html');
 });
 
@@ -35,7 +141,7 @@ var PRIORIDADES_VALIDAS = Object.keys(pesos);
 var SITUACOES_VALIDAS = ['Falta Pagar', 'Pago', 'Encerrado'];
 var SETORES_VALIDOS = ['Montagem', 'Subconjunto', 'Celula', 'BCM', 'Importada', 'Usinagem'];
 
-app.get('/ordens', function (req, res) {
+app.get('/ordens', requireAuth, function (req, res) {
     pool.query('SELECT * FROM ordens_producao ORDER BY id DESC', function (erro, resultado) {
         if (erro) {
             return res.status(500).json({ erro: erro.message });
@@ -44,7 +150,7 @@ app.get('/ordens', function (req, res) {
     });
 });
 
-app.get('/ordens/pendentes', function (req, res) {
+app.get('/ordens/pendentes', requireAuth, function (req, res) {
     pool.query("SELECT * FROM ordens_producao WHERE situacao != 'Encerrado' ORDER BY coalesce(peso_prioridade, 99), id DESC", function (erro, resultado) {
         if (erro) {
             return res.status(500).json({ erro: erro.message });
@@ -53,7 +159,7 @@ app.get('/ordens/pendentes', function (req, res) {
     });
 });
 
-app.post('/ordens', function (req, res) {
+app.post('/ordens', requireAuth, function (req, res) {
     var numero_op = req.body.numero_op ? String(req.body.numero_op).trim() : null;
     var setor = req.body.setor ? String(req.body.setor).trim() : null;
     var total_pecas = parseInt(req.body.total_pecas, 10);
@@ -72,7 +178,6 @@ app.post('/ordens', function (req, res) {
         return res.status(400).json({ erro: 'O total de peças deve ser um número maior que zero.' });
     }
 
-    // Regra dos materiais: máximo de 8 dígitos numéricos
     if (material) {
         if (material.length > 8 || !/^\d+$/.test(material)) {
             return res.status(400).json({ erro: 'O material deve respeitar a regra de ser numérico com no máximo 8 dígitos.' });
@@ -89,7 +194,6 @@ app.post('/ordens', function (req, res) {
 
     var peso_prioridade = prioridade && pesos[prioridade] ? pesos[prioridade] : null;
 
-    // Automação do dia_analise ao marcar Pago, caso não tenha sido preenchido manualmente
     if (situacao === 'Pago' && !dia_analise) {
         dia_analise = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
     }
@@ -112,8 +216,7 @@ app.post('/ordens', function (req, res) {
     );
 });
 
-// PUT /ordens/:id - Edição segura com whitelist de colunas e parametrização
-app.put('/ordens/:id', async function (req, res) {
+app.put('/ordens/:id', requireAuth, async function (req, res) {
     var id = parseInt(req.params.id, 10);
     if (!id || isNaN(id)) {
         return res.status(400).json({ erro: 'ID inválido.' });
@@ -123,7 +226,6 @@ app.put('/ordens/:id', async function (req, res) {
     var values = [];
     var paramIndex = 1;
 
-    // 1. Validação e inclusão de campos permitidos (Whitelist fixa)
     if (req.body.numero_op !== undefined) {
         var op = String(req.body.numero_op).trim();
         if (!op) {
@@ -151,7 +253,6 @@ app.put('/ordens/:id', async function (req, res) {
         values.push(dataAber);
     }
 
-    // Regra do material: máximo de 8 dígitos e numérico
     if (req.body.material !== undefined) {
         var mat = req.body.material !== null ? String(req.body.material).trim() : null;
         if (mat) {
@@ -186,13 +287,11 @@ app.put('/ordens/:id', async function (req, res) {
         updates.push(`prioridade = $${paramIndex++}`);
         values.push(prio || null);
 
-        // Recalcula peso_prioridade quando a prioridade muda
         var peso = (prio && pesos[prio]) ? pesos[prio] : null;
         updates.push(`peso_prioridade = $${paramIndex++}`);
         values.push(peso);
     }
 
-    // Ajuste permitido de dia_analise (manual ou automático)
     var diaAnaliseDefinido = false;
     if (req.body.dia_analise !== undefined) {
         var dataAna = req.body.dia_analise ? String(req.body.dia_analise).trim() : null;
@@ -212,8 +311,6 @@ app.put('/ordens/:id', async function (req, res) {
         updates.push(`situacao = $${paramIndex++}`);
         values.push(sit);
 
-        // Se o dia_analise não foi passado explicitamente nesta requisição, mantém a automação:
-        // preenchido automaticamente com a data de hoje (America/Sao_Paulo) quando vira 'Pago', ou null caso contrário
         if (!diaAnaliseDefinido) {
             if (sit === 'Pago') {
                 var hojeSP = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
@@ -250,8 +347,7 @@ app.put('/ordens/:id', async function (req, res) {
     }
 });
 
-// DELETE /ordens/:id - Remoção individual
-app.delete('/ordens/:id', function (req, res) {
+app.delete('/ordens/:id', requireAuth, function (req, res) {
     var id = parseInt(req.params.id, 10);
     if (!id || isNaN(id)) {
         return res.status(400).json({ erro: 'ID inválido.' });
@@ -268,8 +364,7 @@ app.delete('/ordens/:id', function (req, res) {
     });
 });
 
-// DELETE /ordens - Remoção em massa via lista de IDs
-app.delete('/ordens', function (req, res) {
+app.delete('/ordens', requireAuth, function (req, res) {
     var ids = req.body.ids;
     if (!Array.isArray(ids) || ids.length === 0) {
         return res.status(400).json({ erro: 'Lista de IDs para remoção inválida ou vazia.' });
@@ -283,7 +378,10 @@ app.delete('/ordens', function (req, res) {
     });
 });
 
+app.use(express.static('C:/Users/tiago/Desktop/Projeto/ordens_producao'));
+
 var porta = process.env.PORT || 3000;
 app.listen(porta, function () {
     console.log('Servidor no ar na porta ' + porta + '!');
+    console.log('Login: http://localhost:' + porta + '/login');
 });

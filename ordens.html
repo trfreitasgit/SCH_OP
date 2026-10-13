@@ -41,12 +41,15 @@
             <button class="btn-icon" id="btn-theme-toggle" title="Alternar Modo Escuro / Claro" type="button">
                 <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
             </button>
+            <button class="btn-icon btn-logout" id="btn-logout" title="Sair do sistema" type="button">
+                <span class="material-symbols-outlined">logout</span>
+            </button>
             <div class="user-badge">
                 <div style="display: flex; flex-direction: column; text-align: right;">
-                    <span style="font-weight: 600; font-size: 13px;">Carlos Eduardo</span>
-                    <span style="font-family: var(--font-mono); font-size: 11px; color: var(--primary);">Supervisor PCP</span>
+                    <span style="font-weight: 600; font-size: 13px;" id="user-name">Carregando...</span>
+                    <span style="font-family: var(--font-mono); font-size: 11px; color: var(--primary);" id="user-role">-</span>
                 </div>
-                <div class="user-avatar">CE</div>
+                <div class="user-avatar" id="user-avatar">--</div>
             </div>
         </div>
     </header>
@@ -135,7 +138,7 @@
                             <span class="kpi-number" id="kpi-critico">0</span>
                             <span class="kpi-tag kpi-tag-danger">Fora do Prazo</span>
                         </div>
-                        <span class="kpi-subtext">Pagas depois de 2 dias da abertura</span>
+                        <span class="kpi-subtext">Pagas depois de 48h da abertura</span>
                     </div>
                     <div class="kpi-icon-box">
                         <span class="material-symbols-outlined" style="font-size: 26px;">timer_off</span>
@@ -161,7 +164,7 @@
             <!-- ACTION & CONTROL TOOLBAR -->
             <section class="toolbar-card">
                 <div class="toolbar-title-group">
-                    <h1 class="toolbar-title">Ordens Pendentes</h1>
+                    <h1 class="toolbar-title">Ordens Almoxarifado</h1>
                     <span class="toolbar-badge">PostgreSQL Gateway</span>
                 </div>
                 <div class="toolbar-actions">

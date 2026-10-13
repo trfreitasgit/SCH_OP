@@ -1083,7 +1083,7 @@ html:not(.dark) .app-sidebar {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  text-align: left;
+  text-align: center;
 }
 
 /* Checkbox Column Styling */

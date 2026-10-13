@@ -6,6 +6,47 @@ var campoOrdenado = null;
 var ordemCrescente = true;
 var celulaEmEdicao = null;
 
+// Auth token management
+function getAccessToken() {
+    return localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+}
+
+function setAccessToken(token) {
+    localStorage.setItem('access_token', token);
+}
+
+function clearAccessToken() {
+    localStorage.removeItem('access_token');
+    sessionStorage.removeItem('access_token');
+}
+
+// Authenticated fetch wrapper
+async function authFetch(url, options = {}) {
+    const token = getAccessToken();
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers
+    };
+    
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(url, {
+        ...options,
+        headers,
+        credentials: 'include'
+    });
+    
+    if (response.status === 401) {
+        clearAccessToken();
+        window.location.href = '/login';
+        throw new Error('Não autenticado');
+    }
+    
+    return response;
+}
+
 // Estado dos filtros avançados
 var filtrosAvancados = {
     prioridades: {
@@ -154,23 +195,20 @@ function ordenarPor(campo) {
 }
 
 // Carga inicial das ordens pendentes
-function carregarOrdensPendentes() {
-    fetch('http://localhost:3000/ordens/pendentes')
-        .then(function(resposta) {
-            return resposta.json();
-        })
-        .then(function(dados) {
-            ordensCarregadas = dados;
-            paginacao.paginaAtual = 1;
-            paginacao.itensPorPagina = 10;
-            paginacao.totalItens = dados.length;
-            paginacao.totalPaginas = Math.ceil(paginacao.totalItens / paginacao.itensPorPagina) || 1;
-            renderizarTabelaComPaginacao(dados);
-            atualizarContadoresFiltros();
-        })
-        .catch(function(erro) {
-            console.error('Erro ao carregar ordens:', erro);
-        });
+async function carregarOrdensPendentes() {
+    try {
+        const resposta = await authFetch('http://localhost:3000/ordens/pendentes');
+        const dados = await resposta.json();
+        ordensCarregadas = dados;
+        paginacao.paginaAtual = 1;
+        paginacao.itensPorPagina = 10;
+        paginacao.totalItens = dados.length;
+        paginacao.totalPaginas = Math.ceil(paginacao.totalItens / paginacao.itensPorPagina) || 1;
+        renderizarTabelaComPaginacao(dados);
+        atualizarContadoresFiltros();
+    } catch (erro) {
+        console.error('Erro ao carregar ordens:', erro);
+    }
 }
 carregarOrdensPendentes();
 
@@ -299,9 +337,8 @@ document.getElementById('btnConfirmarLote').addEventListener('click', async func
 
     try {
         var promessas = previaOrdens.map(function (ordem) {
-            return fetch('http://localhost:3000/ordens', {
+            return authFetch('http://localhost:3000/ordens', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(ordem)
             }).then(function(res) {
                 return res.json().then(function(dados) {
@@ -330,8 +367,39 @@ document.getElementById('btnConfirmarLote').addEventListener('click', async func
         alert('Erro ao conectar ao servidor: ' + e.message);
     } finally {
         btn.disabled = false;
-    }
+}
 });
+
+// Logout function
+async function logout() {
+    try {
+        await authFetch('http://localhost:3000/auth/logout', { method: 'POST' });
+    } catch (e) {
+        // Ignore errors on logout
+    }
+    clearAccessToken();
+    window.location.href = '/login';
+}
+
+document.getElementById('btn-logout')?.addEventListener('click', logout);
+
+// Load user info on page load
+async function loadUserInfo() {
+    try {
+        const response = await authFetch('http://localhost:3000/auth/me');
+        const user = await response.json();
+        document.getElementById('user-name').textContent = user.name || user.email;
+        document.getElementById('user-role').textContent = user.role || 'operator';
+        const avatar = document.getElementById('user-avatar');
+        if (avatar && user.name) {
+            avatar.textContent = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        }
+    } catch (e) {
+        console.error('Failed to load user info:', e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadUserInfo);
 
 // FILTROS POR SETOR (integração com filtros avançados)
 document.querySelectorAll('.btnSetor').forEach(function(botao) {
@@ -547,9 +615,9 @@ async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
     editor.disabled = true;
 
     try {
-        var resposta = await fetch('http://localhost:3000/ordens/' + id, {
+        var resposta = await authFetch('http://localhost:3000/ordens/' + id, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [coluna]: novoValor })
             body: JSON.stringify({ [coluna]: novoValor })
         });
 
@@ -739,9 +807,8 @@ async function aplicarEdicaoEmMassa() {
 
     try {
         var promessas = ids.map(function(id) {
-            return fetch('http://localhost:3000/ordens/' + id, {
+            return authFetch('http://localhost:3000/ordens/' + id, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ [campo]: valor })
             }).then(function(res) {
                 return res.json().then(function(dados) {
@@ -796,7 +863,7 @@ async function removerOrdemIndividual(id, op) {
     }
 
     try {
-        var res = await fetch('http://localhost:3000/ordens/' + id, {
+        var res = await authFetch('http://localhost:3000/ordens/' + id, {
             method: 'DELETE'
         });
         var dados = await res.json();
@@ -831,9 +898,8 @@ async function removerOrdensEmMassa() {
     if (btn) btn.disabled = true;
 
     try {
-        var res = await fetch('http://localhost:3000/ordens', {
+        var res = await authFetch('http://localhost:3000/ordens', {
             method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ids: ids })
         });
         var dados = await res.json();
@@ -1442,4 +1508,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+});
+// Inicializa��o dedicada das ordens - garante DOM pronto
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('[DEBUG] DOMContentLoaded - inicializando ordens');
+    carregarOrdensPendentes();
 });
