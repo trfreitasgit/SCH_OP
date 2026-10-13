@@ -5,6 +5,27 @@ var campoOrdenado = null;
 var ordemCrescente = true;
 var celulaEmEdicao = null;
 
+// Estado dos filtros avançados
+var filtrosAvancados = {
+    prioridades: {
+        'Exportacao': true, 'KS': true, 'Marelli': true, 'MWM': true,
+        'Pendencia Comercial': true,
+        'Linha Pesada': true, 'MRP': true, 'Tryout': true
+    },
+    status: { 'Falta Pagar': true, 'Pago': true, 'Encerrado': true },
+    setores: { 'Montagem': true, 'Subconjunto': true, 'Celula': true, 'BCM': true, 'Importada': true, 'Usinagem': true },
+    dataInicio: null,
+    dataFim: null
+};
+
+// Estado da paginação
+var paginacao = {
+    paginaAtual: 1,
+    itensPorPagina: 10,
+    totalItens: 0,
+    totalPaginas: 0
+};
+
 function formatarData(dataISO) {
     if (!dataISO) return '-';
     var partes = dataISO.substring(0, 10).split('-');
@@ -109,10 +130,10 @@ function renderizarTabela(lista) {
 
 function ordenarPor(campo) {
     if (campo === campoOrdenado) {
-        ordemCrescente = !ordemCrescente; // inverte a direção
+        ordemCrescente = !ordemCrescente;
     } else {
         campoOrdenado = campo;
-        ordemCrescente = true; // novo campo, começa com crescente
+        ordemCrescente = true;
     }
 
     var ordenadas = listaAtual.slice().sort(function (a, b) {
@@ -126,7 +147,9 @@ function ordenarPor(campo) {
         if (valA < valB) return ordemCrescente ? -1 : 1;
         return 0;
     });
-    renderizarTabela(ordenadas);
+    listaAtual = ordenadas;
+    paginacao.paginaAtual = 1;
+    renderizarTabelaComPaginacao(ordenadas);
 }
 
 // Carga inicial das ordens pendentes
@@ -137,7 +160,12 @@ function carregarOrdensPendentes() {
         })
         .then(function(dados) {
             ordensCarregadas = dados;
-            renderizarTabela(dados);
+            paginacao.paginaAtual = 1;
+            paginacao.itensPorPagina = 10;
+            paginacao.totalItens = dados.length;
+            paginacao.totalPaginas = Math.ceil(paginacao.totalItens / paginacao.itensPorPagina) || 1;
+            renderizarTabelaComPaginacao(dados);
+            atualizarContadoresFiltros();
         })
         .catch(function(erro) {
             console.error('Erro ao carregar ordens:', erro);
@@ -170,6 +198,18 @@ document.getElementById('btnCopiar').addEventListener('click', function() {
     var texto = ops.join('\n');
     navigator.clipboard.writeText(texto).then(function() {
         mostrarToast('OPs Copiadas para o SAP!', ops.length + ' ordens visíveis copiadas.');
+        // Show SAP buffer indicator
+        var sapBadge = document.getElementById('sap-buffer-indicator');
+        var sapCount = document.getElementById('sap-buffer-count');
+        if (sapBadge && sapCount) {
+            sapCount.innerText = ops.length;
+            sapBadge.style.display = 'flex';
+            sapBadge.classList.add('active');
+            setTimeout(function() {
+                sapBadge.style.display = 'none';
+                sapBadge.classList.remove('active');
+            }, 5000);
+        }
     }).catch(function() {
         // Fallback para ambientes restritos
         var area = document.createElement('textarea');
@@ -179,6 +219,17 @@ document.getElementById('btnCopiar').addEventListener('click', function() {
         document.execCommand('copy');
         document.body.removeChild(area);
         mostrarToast('OPs Copiadas para o SAP!', ops.length + ' ordens visíveis copiadas.');
+        var sapBadge = document.getElementById('sap-buffer-indicator');
+        var sapCount = document.getElementById('sap-buffer-count');
+        if (sapBadge && sapCount) {
+            sapCount.innerText = ops.length;
+            sapBadge.style.display = 'flex';
+            sapBadge.classList.add('active');
+            setTimeout(function() {
+                sapBadge.style.display = 'none';
+                sapBadge.classList.remove('active');
+            }, 5000);
+        }
     });
 });
 
@@ -281,19 +332,56 @@ document.getElementById('btnConfirmarLote').addEventListener('click', async func
     }
 });
 
-// FILTROS POR SETOR
+// FILTROS POR SETOR (integração com filtros avançados)
 document.querySelectorAll('.btnSetor').forEach(function(botao) {
     botao.addEventListener('click', function () {
         var setorEscolhido = botao.dataset.setor;
-        var filtradas = ordensCarregadas.filter(function (ordem) {
-            return ordem.setor === setorEscolhido;
+
+        // Reset all sectors, then enable only selected
+        Object.keys(filtrosAvancados.setores).forEach(function(key) {
+            filtrosAvancados.setores[key] = false;
         });
-        renderizarTabela(filtradas);
+        filtrosAvancados.setores[setorEscolhido] = true;
+
+        // Update checkboxes in filter drawer
+        document.querySelectorAll('.filter-sector .filter-checkbox').forEach(function(cb) {
+            cb.checked = (cb.value === setorEscolhido);
+        });
+
+        // Update sector tab UI
+        document.querySelectorAll('.btnSetor').forEach(function(b) {
+            b.classList.remove('active');
+        });
+        this.classList.add('active');
+        var btnTodosEl = document.getElementById('btnTodos');
+        if (btnTodosEl) {
+            btnTodosEl.style.background = 'var(--bg-container-low)';
+            btnTodosEl.style.color = 'var(--text-muted)';
+        }
+
+        aplicarFiltrosAvancados();
     });
 });
 
 document.getElementById('btnTodos').addEventListener('click', function () {
-    renderizarTabela(ordensCarregadas);
+    // Enable all sectors
+    Object.keys(filtrosAvancados.setores).forEach(function(key) {
+        filtrosAvancados.setores[key] = true;
+    });
+
+    // Update checkboxes
+    document.querySelectorAll('.filter-sector .filter-checkbox').forEach(function(cb) {
+        cb.checked = true;
+    });
+
+    // Update sector tab UI
+    document.querySelectorAll('.btnSetor').forEach(function(b) {
+        b.classList.remove('active');
+    });
+    this.style.background = 'var(--primary)';
+    this.style.color = '#fff';
+
+    aplicarFiltrosAvancados();
 });
 
 // ORDENAÇÃO POR CABEÇALHO
@@ -778,6 +866,185 @@ function mostrarToast(titulo, desc) {
     }, 3500);
 }
 
+// ===== FUNÇÕES DE FILTROS AVANÇADOS =====
+function aplicarFiltrosAvancados() {
+    var filtradas = ordensCarregadas.filter(function(ordem) {
+        // Filtro por prioridade
+        if (!filtrosAvancados.prioridades[ordem.prioridade]) return false;
+        // Filtro por status
+        if (!filtrosAvancados.status[ordem.situacao]) return false;
+        // Filtro por setor
+        if (!filtrosAvancados.setores[ordem.setor]) return false;
+        // Filtro por data de abertura
+        if (filtrosAvancados.dataInicio || filtrosAvancados.dataFim) {
+            var dataAbertura = ordem.data_abertura ? ordem.data_abertura.substring(0, 10) : null;
+            if (!dataAbertura) return false;
+            if (filtrosAvancados.dataInicio && dataAbertura < filtrosAvancados.dataInicio) return false;
+            if (filtrosAvancados.dataFim && dataAbertura > filtrosAvancados.dataFim) return false;
+        }
+        return true;
+    });
+
+    paginacao.paginaAtual = 1;
+    paginacao.totalItens = filtradas.length;
+    paginacao.totalPaginas = Math.ceil(paginacao.totalItens / paginacao.itensPorPagina) || 1;
+    renderizarTabelaComPaginacao(filtradas);
+    atualizarContadoresFiltros();
+}
+
+function resetarFiltrosAvancados() {
+    filtrosAvancados.prioridades = {
+        'Exportacao': true, 'KS': true, 'Marelli': true, 'MWM': true,
+        'Pendencia Comercial': true,
+        'Linha Pesada': true, 'MRP': true, 'Tryout': true
+    };
+    filtrosAvancados.status = { 'Falta Pagar': true, 'Pago': true, 'Encerrado': true };
+    filtrosAvancados.setores = { 'Montagem': true, 'Subconjunto': true, 'Celula': true, 'BCM': true, 'Importada': true, 'Usinagem': true };
+    filtrosAvancados.dataInicio = null;
+    filtrosAvancados.dataFim = null;
+
+    // Reset checkboxes
+    document.querySelectorAll('.filter-group .filter-checkbox').forEach(function(cb) {
+        cb.checked = true;
+    });
+    document.querySelectorAll('.filter-status .filter-checkbox').forEach(function(cb) {
+        cb.checked = true;
+    });
+    document.querySelectorAll('.filter-sector .filter-checkbox').forEach(function(cb) {
+        cb.checked = true;
+    });
+
+    // Reset date inputs
+    var filterDateStart = document.getElementById('filter-date-start');
+    var filterDateEnd = document.getElementById('filter-date-end');
+    if (filterDateStart) filterDateStart.value = '';
+    if (filterDateEnd) filterDateEnd.value = '';
+
+    paginacao.paginaAtual = 1;
+    paginacao.totalItens = ordensCarregadas.length;
+    paginacao.totalPaginas = Math.ceil(paginacao.totalItens / paginacao.itensPorPagina) || 1;
+    renderizarTabelaComPaginacao(ordensCarregadas);
+    atualizarContadoresFiltros();
+}
+
+function atualizarContadoresFiltros() {
+    // Atualiza contadores nas labels dos filtros
+    var counts = { prioridades: {}, status: {}, setores: {} };
+
+    ordensCarregadas.forEach(function(ordem) {
+        if (counts.prioridades[ordem.prioridade] === undefined) counts.prioridades[ordem.prioridade] = 0;
+        counts.prioridades[ordem.prioridade]++;
+
+        if (counts.status[ordem.situacao] === undefined) counts.status[ordem.situacao] = 0;
+        counts.status[ordem.situacao]++;
+
+        if (counts.setores[ordem.setor] === undefined) counts.setores[ordem.setor] = 0;
+        counts.setores[ordem.setor]++;
+    });
+
+    // Atualiza elementos DOM
+    Object.keys(counts.prioridades).forEach(function(key) {
+        var el = document.getElementById('count-' + key.toLowerCase().replace(' ', '-'));
+        if (!el) {
+            // Tenta por grupo
+            if (['Exportacao', 'KS', 'Marelli', 'MWM'].includes(key)) {
+                el = document.getElementById('count-red');
+            } else if (['Pendencia Comercial'].includes(key)) {
+                el = document.getElementById('count-amber');
+            } else {
+                el = document.getElementById('count-slate');
+            }
+        }
+        if (el) el.innerText = counts.prioridades[key];
+    });
+
+    Object.keys(counts.status).forEach(function(key) {
+        var el = document.getElementById('count-status-' + key.toLowerCase().replace(' ', '-'));
+        if (el) el.innerText = counts.status[key];
+    });
+
+    Object.keys(counts.setores).forEach(function(key) {
+        // Contadores de setor podem ser adicionados se necessário
+    });
+}
+
+// ===== FUNÇÕES DE PAGINAÇÃO =====
+function renderizarTabelaComPaginacao(lista) {
+    listaAtual = lista;
+    paginacao.totalItens = lista.length;
+    paginacao.totalPaginas = Math.ceil(paginacao.totalItens / paginacao.itensPorPagina) || 1;
+
+    if (paginacao.paginaAtual > paginacao.totalPaginas) {
+        paginacao.paginaAtual = paginacao.totalPaginas;
+    }
+
+    var inicio = (paginacao.paginaAtual - 1) * paginacao.itensPorPagina;
+    var fim = Math.min(inicio + paginacao.itensPorPagina, paginacao.totalItens);
+    var paginaItens = lista.slice(inicio, fim);
+
+    renderizarTabela(paginaItens);
+    atualizarControlesPaginacao();
+}
+
+function atualizarControlesPaginacao() {
+    var startEl = document.getElementById('pagination-start');
+    var endEl = document.getElementById('pagination-end');
+    var totalEl = document.getElementById('pagination-total');
+    var pagesEl = document.getElementById('pagination-pages');
+    var prevBtn = document.getElementById('pagination-prev');
+    var nextBtn = document.getElementById('pagination-next');
+    var firstBtn = document.getElementById('pagination-first');
+    var lastBtn = document.getElementById('pagination-last');
+
+    var inicio = paginacao.totalItens === 0 ? 0 : (paginacao.paginaAtual - 1) * paginacao.itensPorPagina + 1;
+    var fim = Math.min(paginacao.paginaAtual * paginacao.itensPorPagina, paginacao.totalItens);
+
+    if (startEl) startEl.innerText = inicio;
+    if (endEl) endEl.innerText = fim;
+    if (totalEl) totalEl.innerText = paginacao.totalItens;
+
+    // Botões de navegação
+    if (prevBtn) prevBtn.disabled = paginacao.paginaAtual <= 1;
+    if (nextBtn) nextBtn.disabled = paginacao.paginaAtual >= paginacao.totalPaginas;
+    if (firstBtn) firstBtn.disabled = paginacao.paginaAtual <= 1;
+    if (lastBtn) lastBtn.disabled = paginacao.paginaAtual >= paginacao.totalPaginas;
+
+    // Páginas numeradas
+    if (pagesEl) {
+        var html = '';
+        var maxPages = 5;
+        var startPage = Math.max(1, paginacao.paginaAtual - Math.floor(maxPages / 2));
+        var endPage = Math.min(paginacao.totalPaginas, startPage + maxPages - 1);
+
+        if (startPage > 1) {
+            html += '<button class="pagination-page" data-page="1">1</button>';
+            if (startPage > 2) html += '<span class="pagination-ellipsis">...</span>';
+        }
+
+        for (var p = startPage; p <= endPage; p++) {
+            html += '<button class="pagination-page' + (p === paginacao.paginaAtual ? ' active' : '') + '" data-page="' + p + '">' + p + '</button>';
+        }
+
+        if (endPage < paginacao.totalPaginas) {
+            if (endPage < paginacao.totalPaginas - 1) html += '<span class="pagination-ellipsis">...</span>';
+            html += '<button class="pagination-page" data-page="' + paginacao.totalPaginas + '">' + paginacao.totalPaginas + '</button>';
+        }
+
+        pagesEl.innerHTML = html;
+
+        // Event listeners para páginas
+        pagesEl.querySelectorAll('.pagination-page').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var page = parseInt(this.dataset.page, 10);
+                if (page !== paginacao.paginaAtual) {
+                    paginacao.paginaAtual = page;
+                    renderizarTabelaComPaginacao(listaAtual);
+                }
+            });
+        });
+    }
+}
+
 // Inicialização dos listeners de edição e seleção
 document.addEventListener('DOMContentLoaded', function() {
     var tabela = document.getElementById('tabelaOrdens');
@@ -841,6 +1108,182 @@ document.addEventListener('DOMContentLoaded', function() {
             var checkboxes = document.querySelectorAll('.check-ordem');
             checkboxes.forEach(function(cb) { cb.checked = false; });
             atualizarEstadoSelecao();
+        });
+    }
+
+    // ===== FILTER DRAWER =====
+    var filterDrawer = document.getElementById('filter-drawer');
+    var btnToggleFilters = document.getElementById('btn-toggle-filters');
+    var btnMinimizeDrawer = document.getElementById('btn-minimize-drawer');
+    var btnApplyFilters = document.getElementById('btn-apply-filters');
+    var btnResetFilters = document.getElementById('btn-reset-filters');
+
+    function toggleFilterDrawer() {
+        if (filterDrawer) {
+            filterDrawer.classList.toggle('hidden');
+        }
+    }
+
+    if (btnToggleFilters) {
+        btnToggleFilters.addEventListener('click', toggleFilterDrawer);
+    }
+    if (btnMinimizeDrawer) {
+        btnMinimizeDrawer.addEventListener('click', toggleFilterDrawer);
+    }
+
+    // Priority checkboxes
+    document.querySelectorAll('.filter-group .filter-checkbox').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            filtrosAvancados.prioridades[this.value] = this.checked;
+        });
+    });
+
+    // Status checkboxes
+    document.querySelectorAll('.filter-status .filter-checkbox').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            filtrosAvancados.status[this.value] = this.checked;
+        });
+    });
+
+    // Sector checkboxes
+    document.querySelectorAll('.filter-sector .filter-checkbox').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            filtrosAvancados.setores[this.value] = this.checked;
+        });
+    });
+
+    // Date range
+    var filterDateStart = document.getElementById('filter-date-start');
+    var filterDateEnd = document.getElementById('filter-date-end');
+    if (filterDateStart) {
+        filterDateStart.addEventListener('change', function() {
+            filtrosAvancados.dataInicio = this.value || null;
+        });
+    }
+    if (filterDateEnd) {
+        filterDateEnd.addEventListener('change', function() {
+            filtrosAvancados.dataFim = this.value || null;
+        });
+    }
+
+    // Apply filters
+    if (btnApplyFilters) {
+        btnApplyFilters.addEventListener('click', function() {
+            aplicarFiltrosAvancados();
+            toggleFilterDrawer();
+        });
+    }
+
+    // Reset filters
+    if (btnResetFilters) {
+        btnResetFilters.addEventListener('click', function() {
+            resetarFiltrosAvancados();
+        });
+    }
+
+    // ===== PAGINATION =====
+    var paginationSize = document.getElementById('pagination-size');
+    var paginationFirst = document.getElementById('pagination-first');
+    var paginationPrev = document.getElementById('pagination-prev');
+    var paginationNext = document.getElementById('pagination-next');
+    var paginationLast = document.getElementById('pagination-last');
+
+    if (paginationSize) {
+        paginationSize.addEventListener('change', function() {
+            paginacao.itensPorPagina = parseInt(this.value, 10);
+            paginacao.paginaAtual = 1;
+            renderizarTabelaComPaginacao(listaAtual);
+        });
+    }
+
+    if (paginationFirst) {
+        paginationFirst.addEventListener('click', function() {
+            if (!this.disabled) {
+                paginacao.paginaAtual = 1;
+                renderizarTabelaComPaginacao(listaAtual);
+            }
+        });
+    }
+
+    if (paginationPrev) {
+        paginationPrev.addEventListener('click', function() {
+            if (!this.disabled && paginacao.paginaAtual > 1) {
+                paginacao.paginaAtual--;
+                renderizarTabelaComPaginacao(listaAtual);
+            }
+        });
+    }
+
+    if (paginationNext) {
+        paginationNext.addEventListener('click', function() {
+            if (!this.disabled && paginacao.paginaAtual < paginacao.totalPaginas) {
+                paginacao.paginaAtual++;
+                renderizarTabelaComPaginacao(listaAtual);
+            }
+        });
+    }
+
+    if (paginationLast) {
+        paginationLast.addEventListener('click', function() {
+            if (!this.disabled) {
+                paginacao.paginaAtual = paginacao.totalPaginas;
+                renderizarTabelaComPaginacao(listaAtual);
+            }
+        });
+    }
+
+    // ===== BATCH VALIDATION UI =====
+    var txtOps = document.getElementById('listaOPs');
+    var txtQtd = document.getElementById('listaPecas');
+    var txtMat = document.getElementById('listaMateriais');
+    var countOps = document.getElementById('count-ops');
+    var countQtd = document.getElementById('count-qtd');
+    var countMat = document.getElementById('count-mat');
+    var previewTag = document.getElementById('preview-tag');
+
+    function updateBatchCounters() {
+        if (txtOps && countOps) {
+            var linesOps = txtOps.value.split('\n').filter(function(l) { return l.trim().length > 0; }).length;
+            countOps.innerText = linesOps + ' linhas';
+        }
+        if (txtQtd && countQtd) {
+            var linesQtd = txtQtd.value.split('\n').filter(function(l) { return l.trim().length > 0; }).length;
+            countQtd.innerText = linesQtd + ' linhas';
+        }
+        if (txtMat && countMat) {
+            var linesMat = txtMat.value.split('\n').filter(function(l) { return l.trim().length > 0; }).length;
+            countMat.innerText = linesMat + ' linhas';
+        }
+        // Preview tag validation
+        if (previewTag && txtOps && txtQtd && txtMat) {
+            var linesOps = txtOps.value.split('\n').filter(function(l) { return l.trim().length > 0; }).length;
+            var linesQtd = txtQtd.value.split('\n').filter(function(l) { return l.trim().length > 0; }).length;
+            var linesMat = txtMat.value.split('\n').filter(function(l) { return l.trim().length > 0; }).length;
+            var valid = linesOps > 0 && linesOps === linesQtd && linesOps === linesMat;
+            if (valid) {
+                previewTag.classList.add('visible');
+            } else {
+                previewTag.classList.remove('visible');
+            }
+        }
+    }
+
+    if (txtOps) txtOps.addEventListener('input', updateBatchCounters);
+    if (txtQtd) txtQtd.addEventListener('input', updateBatchCounters);
+    if (txtMat) txtMat.addEventListener('input', updateBatchCounters);
+
+    // ===== SAP BUFFER INDICATOR =====
+    // Update SAP buffer badge when orders are copied
+    var originalCopiar = document.getElementById('btnCopiar');
+    if (originalCopiar) {
+        originalCopiar.addEventListener('click', function() {
+            var sapBadge = document.getElementById('badge-sap');
+            if (sapBadge) {
+                sapBadge.style.display = 'flex';
+                setTimeout(function() {
+                    sapBadge.style.display = 'none';
+                }, 5000);
+            }
         });
     }
 });

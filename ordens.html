@@ -170,6 +170,11 @@
                         <span class="material-symbols-outlined">content_copy</span>
                         <span>Copiar OPs para o SAP</span>
                     </button>
+                    <!-- Toggle Filter Drawer -->
+                    <button id="btn-toggle-filters" class="btn-secondary-action" type="button" title="Abrir/Fechar Filtros Laterais">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">filter_alt</span>
+                        <span>Filtros Laterais</span>
+                    </button>
                     <!-- Toggle Batch Panel -->
                     <button class="btn-primary-action" id="btn-toggle-batch" type="button">
                         <span class="material-symbols-outlined" style="font-size: 18px;">playlist_add</span>
@@ -222,8 +227,12 @@
                             style="font-size: 16px; color: var(--text-subtle);">search</span>
                         <input id="table-search" placeholder="Filtro rápido visual na tabela..." type="text" />
                     </div>
-                    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); display: flex; gap: 14px;">
+                    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); display: flex; gap: 14px; align-items: center;">
                         <span>💡 Duplo clique para editar | Enter salva | Esc cancela</span>
+                        <div id="sap-buffer-indicator" class="sap-buffer-indicator" style="display: none;">
+                            <span class="material-symbols-outlined" style="font-size: 14px; color: var(--primary);">sync_alt</span>
+                            <span id="sap-buffer-count">0</span> em fila
+                        </div>
                     </div>
                 </div>
 
@@ -295,9 +304,34 @@
                     </table>
                 </div>
 
-                <div class="table-footer">
-                    <span id="table-records-counter">Carregando ordens...</span>
-                    <span>Schadek Industrial • PostgreSQL 15</span>
+                <div class="table-footer-pagination">
+                    <div class="pagination-info">
+                        <span>Mostrando <strong id="pagination-start">0</strong>–<strong id="pagination-end">0</strong> de <strong id="pagination-total">0</strong> Ordens</span>
+                        <div class="pagination-size">
+                            <span>Exibir:</span>
+                            <select id="pagination-size" class="pagination-select">
+                                <option value="10" selected>10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                    </div>
+                    <nav class="pagination-nav" aria-label="Paginação da tabela">
+                        <button id="pagination-first" class="pagination-btn" title="Primeira página" aria-label="Primeira página">
+                            <span class="material-symbols-outlined">first_page</span>
+                        </button>
+                        <button id="pagination-prev" class="pagination-btn" title="Página anterior" aria-label="Página anterior">
+                            <span class="material-symbols-outlined">chevron_left</span>
+                        </button>
+                        <div id="pagination-pages" class="pagination-pages"></div>
+                        <button id="pagination-next" class="pagination-btn" title="Próxima página" aria-label="Próxima página">
+                            <span class="material-symbols-outlined">chevron_right</span>
+                        </button>
+                        <button id="pagination-last" class="pagination-btn" title="Última página" aria-label="Última página">
+                            <span class="material-symbols-outlined">last_page</span>
+                        </button>
+                    </nav>
                 </div>
             </section>
 
@@ -323,6 +357,7 @@
                         <div class="batch-field-group">
                             <label class="batch-label" for="listaOPs">
                                 <span class="step-num">01.</span> Números das OPs (um por linha):
+                                <span class="batch-line-counter" id="count-ops">0 linhas</span>
                             </label>
                             <textarea id="listaOPs" placeholder="1131789&#10;1131790&#10;1131792" rows="6"></textarea>
                         </div>
@@ -331,6 +366,7 @@
                         <div class="batch-field-group">
                             <label class="batch-label" for="listaPecas">
                                 <span class="step-num">02.</span> Total de peças (um por linha, mesma ordem):
+                                <span class="batch-line-counter" id="count-qtd">0 linhas</span>
                             </label>
                             <textarea id="listaPecas" placeholder="500&#10;1200&#10;350" rows="6"></textarea>
                         </div>
@@ -339,9 +375,16 @@
                         <div class="batch-field-group">
                             <label class="batch-label" for="listaMateriais">
                                 <span class="step-num">03.</span> Materiais (máx 8 dígitos, um por linha, mesma ordem):
+                                <span class="batch-line-counter" id="count-mat">0 linhas</span>
                             </label>
                             <textarea id="listaMateriais" placeholder="90000522&#10;90001840&#10;90003115" rows="6"></textarea>
                         </div>
+                    </div>
+
+                    <!-- Preview Validation Tag -->
+                    <div class="batch-preview-tag" id="preview-tag">
+                        <span class="material-symbols-outlined" style="font-size: 14px;">check_circle</span>
+                        <span>OPs (7 dig.) e Materiais (8 dig.) validados!</span>
                     </div>
 
                     <!-- 5-Column Metadata Form Controls -->
@@ -386,14 +429,20 @@
                             <label for="prioridadeLote">Prioridade:</label>
                             <select id="prioridadeLote">
                                 <option value="">Ainda não definida</option>
-                                <option value="Exportacao">Exportação</option>
-                                <option value="MWM">MWM</option>
-                                <option value="KS">KS</option>
-                                <option value="Marelli">Marelli</option>
-                                <option value="Pendencia Comercial">Pendência Comercial</option>
-                                <option value="Linha Pesada">Linha Pesada</option>
-                                <option value="MRP">MRP</option>
-                                <option value="Tryout">Tryout</option>
+                                <optgroup class="priority-optgroup-red" label="🔴 Lista Vermelha (Crítica)">
+                                    <option value="Exportacao">Exportação</option>
+                                    <option value="KS">KS</option>
+                                    <option value="Marelli">Marelli</option>
+                                    <option value="MWM">MWM</option>
+                                </optgroup>
+                                <optgroup class="priority-optgroup-amber" label="🟡 Lista Amarela (Comercial)">
+                                    <option value="Pendencia Comercial">Pendência Comercial</option>
+                                </optgroup>
+                                <optgroup class="priority-optgroup-slate" label="⚪ Lista Branca (Padrão)">
+                                    <option value="Linha Pesada">Linha Pesada</option>
+                                    <option value="MRP">MRP</option>
+                                    <option value="Tryout">Tryout</option>
+                                </optgroup>
                             </select>
                         </div>
                     </div>
@@ -433,6 +482,180 @@
 
         </main>
     </div>
+
+    <!-- RETRACTABLE GLASS FLY-OUT FILTER DRAWER -->
+    <aside class="filter-drawer hidden" id="filter-drawer" role="complementary" aria-label="Filtros rápidos">
+        <div class="filter-drawer-header">
+            <div class="filter-drawer-title">
+                <span class="material-symbols-outlined" style="color: var(--primary); font-size: 20px;">tune</span>
+                <span>Filtros Rápidos</span>
+            </div>
+            <button class="btn-icon" id="btn-minimize-drawer" title="Ocultar Painel" type="button">
+                <span class="material-symbols-outlined">dock_to_right</span>
+            </button>
+        </div>
+
+        <!-- Priority Filter Grouped by Strict Color Lists -->
+        <section class="filter-section">
+            <div class="filter-section-header">
+                <span class="filter-section-label">
+                    <span class="material-symbols-outlined" style="color: var(--primary); font-size: 16px;">calendar_month</span>
+                    Listas de Prioridade
+                </span>
+            </div>
+            <div class="filter-groups">
+                <!-- Lista Vermelha -->
+                <fieldset class="filter-group filter-group-red">
+                    <legend class="filter-group-title">
+                        <span class="filter-group-dot red"></span>
+                        Lista Vermelha (Crítica)
+                        <span class="filter-group-count" id="count-red">0</span>
+                    </legend>
+                    <div class="filter-options">
+                        <label class="filter-option">
+                            <input type="checkbox" class="filter-checkbox" value="Exportacao" checked>
+                            <span>Exportação</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" class="filter-checkbox" value="KS" checked>
+                            <span>KS</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" class="filter-checkbox" value="Marelli" checked>
+                            <span>Marelli</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" class="filter-checkbox" value="MWM" checked>
+                            <span>MWM</span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <!-- Lista Amarela -->
+                <fieldset class="filter-group filter-group-amber">
+                    <legend class="filter-group-title">
+                        <span class="filter-group-dot amber"></span>
+                        Lista Amarela (Comercial)
+                        <span class="filter-group-count" id="count-amber">0</span>
+                    </legend>
+                    <div class="filter-options">
+                        <label class="filter-option">
+                            <input type="checkbox" class="filter-checkbox" value="Pendencia Comercial" checked>
+                            <span>Pendência Comercial</span>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <!-- Lista Branca -->
+                <fieldset class="filter-group filter-group-slate">
+                    <legend class="filter-group-title">
+                        <span class="filter-group-dot slate"></span>
+                        Lista Branca (Padrão)
+                        <span class="filter-group-count" id="count-slate">0</span>
+                    </legend>
+                    <div class="filter-options">
+                        <label class="filter-option">
+                            <input type="checkbox" class="filter-checkbox" value="Linha Pesada" checked>
+                            <span>Linha Pesada</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" class="filter-checkbox" value="MRP" checked>
+                            <span>MRP</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="checkbox" class="filter-checkbox" value="Tryout" checked>
+                            <span>Tryout</span>
+                        </label>
+                    </div>
+                </fieldset>
+            </div>
+        </section>
+
+        <!-- Situation / Status Filter -->
+        <section class="filter-section">
+            <span class="filter-section-label">Situação da OP</span>
+            <div class="filter-options filter-status">
+                <label class="filter-option filter-status-option">
+                    <input type="checkbox" class="filter-checkbox" value="Falta Pagar" checked>
+                    <span class="filter-status-dot red"></span>
+                    <span>Falta Pagar</span>
+                    <span class="filter-status-count" id="count-status-falta-pagar">0</span>
+                </label>
+                <label class="filter-option filter-status-option">
+                    <input type="checkbox" class="filter-checkbox" value="Pago" checked>
+                    <span class="filter-status-dot green"></span>
+                    <span>Pago</span>
+                    <span class="filter-status-count" id="count-status-pago">0</span>
+                </label>
+                <label class="filter-option filter-status-option">
+                    <input type="checkbox" class="filter-checkbox" value="Encerrado" checked>
+                    <span class="filter-status-dot slate"></span>
+                    <span>Encerrado</span>
+                    <span class="filter-status-count" id="count-status-encerrado">0</span>
+                </label>
+            </div>
+        </section>
+
+        <!-- Sector Selector (Strict 6 Sectors) -->
+        <section class="filter-section">
+            <span class="filter-section-label">Setor Produtivo (6 Setores)</span>
+            <div class="filter-options filter-sector">
+                <label class="filter-option">
+                    <input type="checkbox" class="filter-checkbox" value="Montagem" checked>
+                    <span>Montagem</span>
+                </label>
+                <label class="filter-option">
+                    <input type="checkbox" class="filter-checkbox" value="Subconjunto" checked>
+                    <span>Subconjunto</span>
+                </label>
+                <label class="filter-option">
+                    <input type="checkbox" class="filter-checkbox" value="Celula" checked>
+                    <span>Célula</span>
+                </label>
+                <label class="filter-option">
+                    <input type="checkbox" class="filter-checkbox" value="BCM" checked>
+                    <span>BCM</span>
+                </label>
+                <label class="filter-option">
+                    <input type="checkbox" class="filter-checkbox" value="Importada" checked>
+                    <span>Importada</span>
+                </label>
+                <label class="filter-option">
+                    <input type="checkbox" class="filter-checkbox" value="Usinagem" checked>
+                    <span>Usinagem</span>
+                </label>
+            </div>
+        </section>
+
+        <!-- Date Range Filter -->
+        <section class="filter-section">
+            <span class="filter-section-label">Período de Abertura</span>
+            <div class="filter-date-range">
+                <input type="date" id="filter-date-start" class="filter-date-input">
+                <input type="date" id="filter-date-end" class="filter-date-input">
+            </div>
+        </section>
+
+        <!-- Apply & Reset Buttons -->
+        <div class="filter-actions">
+            <button id="btn-apply-filters" class="btn-primary-action" style="width: 100%; justify-content: center;">
+                <span class="material-symbols-outlined">filter_alt</span>
+                <span>Aplicar Filtros</span>
+            </button>
+            <button id="btn-reset-filters" class="btn-secondary-action" style="width: 100%; justify-content: center;">
+                Reset
+            </button>
+        </div>
+
+        <!-- System Signature -->
+        <div class="filter-footer">
+            <span class="filter-signature">
+                <span class="filter-sync-dot"></span>
+                Schadek Sync
+            </span>
+            <span class="filter-version">v4.9.0-PROD</span>
+        </div>
+    </aside>
 
     <!-- TOAST NOTIFICATION -->
     <div class="toast-notification" id="toast-sap">
