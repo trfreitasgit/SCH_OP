@@ -1,5 +1,6 @@
 var ordensCarregadas = [];
 var previaOrdens = [];
+var listaFiltrada = [];
 var listaAtual = [];
 var campoOrdenado = null;
 var ordemCrescente = true;
@@ -98,8 +99,7 @@ function atualizarKPIs(lista) {
 }
 
 function renderizarTabela(lista) {
-    atualizarKPIs(lista);
-    listaAtual = lista;
+    atualizarKPIs(listaFiltrada);
     var tabela = document.getElementById('tabelaOrdens');
     var corpoTabela = tabela.querySelector('tbody');
     var html = '';
@@ -970,7 +970,7 @@ function atualizarContadoresFiltros() {
 
 // ===== FUNÇÕES DE PAGINAÇÃO =====
 function renderizarTabelaComPaginacao(lista) {
-    listaAtual = lista;
+    listaFiltrada = lista;
     paginacao.totalItens = lista.length;
     paginacao.totalPaginas = Math.ceil(paginacao.totalItens / paginacao.itensPorPagina) || 1;
 
@@ -982,6 +982,7 @@ function renderizarTabelaComPaginacao(lista) {
     var fim = Math.min(inicio + paginacao.itensPorPagina, paginacao.totalItens);
     var paginaItens = lista.slice(inicio, fim);
 
+    listaAtual = paginaItens;
     renderizarTabela(paginaItens);
     atualizarControlesPaginacao();
 }
@@ -1135,6 +1136,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.filter-group .filter-checkbox').forEach(function(cb) {
         cb.addEventListener('change', function() {
             filtrosAvancados.prioridades[this.value] = this.checked;
+            aplicarFiltrosAvancados();
         });
     });
 
@@ -1142,6 +1144,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.filter-status .filter-checkbox').forEach(function(cb) {
         cb.addEventListener('change', function() {
             filtrosAvancados.status[this.value] = this.checked;
+            aplicarFiltrosAvancados();
         });
     });
 
@@ -1149,6 +1152,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.filter-sector .filter-checkbox').forEach(function(cb) {
         cb.addEventListener('change', function() {
             filtrosAvancados.setores[this.value] = this.checked;
+            aplicarFiltrosAvancados();
         });
     });
 
@@ -1192,7 +1196,7 @@ document.addEventListener('DOMContentLoaded', function() {
         paginationSize.addEventListener('change', function() {
             paginacao.itensPorPagina = parseInt(this.value, 10);
             paginacao.paginaAtual = 1;
-            renderizarTabelaComPaginacao(listaAtual);
+            renderizarTabelaComPaginacao(listaFiltrada);
         });
     }
 
@@ -1200,7 +1204,7 @@ document.addEventListener('DOMContentLoaded', function() {
         paginationFirst.addEventListener('click', function() {
             if (!this.disabled) {
                 paginacao.paginaAtual = 1;
-                renderizarTabelaComPaginacao(listaAtual);
+                renderizarTabelaComPaginacao(listaFiltrada);
             }
         });
     }
@@ -1209,7 +1213,7 @@ document.addEventListener('DOMContentLoaded', function() {
         paginationPrev.addEventListener('click', function() {
             if (!this.disabled && paginacao.paginaAtual > 1) {
                 paginacao.paginaAtual--;
-                renderizarTabelaComPaginacao(listaAtual);
+                renderizarTabelaComPaginacao(listaFiltrada);
             }
         });
     }
@@ -1218,7 +1222,7 @@ document.addEventListener('DOMContentLoaded', function() {
         paginationNext.addEventListener('click', function() {
             if (!this.disabled && paginacao.paginaAtual < paginacao.totalPaginas) {
                 paginacao.paginaAtual++;
-                renderizarTabelaComPaginacao(listaAtual);
+                renderizarTabelaComPaginacao(listaFiltrada);
             }
         });
     }
@@ -1227,7 +1231,7 @@ document.addEventListener('DOMContentLoaded', function() {
         paginationLast.addEventListener('click', function() {
             if (!this.disabled) {
                 paginacao.paginaAtual = paginacao.totalPaginas;
-                renderizarTabelaComPaginacao(listaAtual);
+                renderizarTabelaComPaginacao(listaFiltrada);
             }
         });
     }
