@@ -11,7 +11,8 @@ var filtrosAvancados = {
     prioridades: {
         'Exportacao': true, 'KS': true, 'Marelli': true, 'MWM': true,
         'Pendencia Comercial': true,
-        'Linha Pesada': true, 'MRP': true, 'Tryout': true
+        'Linha Pesada': true, 'MRP': true, 'Tryout': true,
+        '__NULL__': true
     },
     status: { 'Falta Pagar': true, 'Pago': true, 'Encerrado': true },
     setores: { 'Montagem': true, 'Subconjunto': true, 'Celula': true, 'BCM': true, 'Importada': true, 'Usinagem': true },
@@ -873,8 +874,14 @@ function aplicarFiltrosAvancados() {
         var stat = ordem.situacao;
         var sect = ordem.setor;
 
-        // Prioridade: passa se NULL/undefined OU se está na lista permitida
-        if (prio !== null && prio !== undefined && !filtrosAvancados.prioridades[prio]) return false;
+        // Prioridade: se tem prioridade, verifica se está na lista permitida
+        // se NÃO tem prioridade (null/undefined), verifica se __NULL__ está permitido
+        if (prio !== null && prio !== undefined) {
+            if (!filtrosAvancados.prioridades[prio]) return false;
+        } else {
+            if (!filtrosAvancados.prioridades['__NULL__']) return false;
+        }
+
         // Status: passa se NULL/undefined OU se está na lista
         if (stat !== null && stat !== undefined && !filtrosAvancados.status[stat]) return false;
         // Setor: passa se NULL/undefined OU se está na lista
@@ -901,15 +908,16 @@ function resetarFiltrosAvancados() {
     filtrosAvancados.prioridades = {
         'Exportacao': true, 'KS': true, 'Marelli': true, 'MWM': true,
         'Pendencia Comercial': true,
-        'Linha Pesada': true, 'MRP': true, 'Tryout': true
+        'Linha Pesada': true, 'MRP': true, 'Tryout': true,
+        '__NULL__': true
     };
     filtrosAvancados.status = { 'Falta Pagar': true, 'Pago': true, 'Encerrado': true };
     filtrosAvancados.setores = { 'Montagem': true, 'Subconjunto': true, 'Celula': true, 'BCM': true, 'Importada': true, 'Usinagem': true };
     filtrosAvancados.dataInicio = null;
     filtrosAvancados.dataFim = null;
 
-    // Reset checkboxes
-    document.querySelectorAll('.filter-group .filter-checkbox').forEach(function(cb) {
+    // Reset ALL priority checkboxes (across all tabs)
+    document.querySelectorAll('.filter-group .filter-checkbox, .filter-priority-list .filter-checkbox').forEach(function(cb) {
         cb.checked = true;
     });
     document.querySelectorAll('.filter-status .filter-checkbox').forEach(function(cb) {
@@ -933,12 +941,14 @@ function resetarFiltrosAvancados() {
 }
 
 function atualizarContadoresFiltros() {
-    // Atualiza contadores nas labels dos filtros
+    // Atualiza contadores nas labels dos filtros - usa listaFiltrada (filtrada visível)
     var counts = { prioridades: {}, status: {}, setores: {} };
+    var sourceList = (typeof listaFiltrada !== 'undefined' && listaFiltrada) ? listaFiltrada : ordensCarregadas;
 
-    ordensCarregadas.forEach(function(ordem) {
-        if (counts.prioridades[ordem.prioridade] === undefined) counts.prioridades[ordem.prioridade] = 0;
-        counts.prioridades[ordem.prioridade]++;
+    sourceList.forEach(function(ordem) {
+        var prioKey = ordem.prioridade || '__NULL__';
+        if (counts.prioridades[prioKey] === undefined) counts.prioridades[prioKey] = 0;
+        counts.prioridades[prioKey]++;
 
         if (counts.status[ordem.situacao] === undefined) counts.status[ordem.situacao] = 0;
         counts.status[ordem.situacao]++;
@@ -947,27 +957,42 @@ function atualizarContadoresFiltros() {
         counts.setores[ordem.setor]++;
     });
 
-    // Atualiza elementos DOM
+    // Atualiza elementos DOM - grupos de prioridade
+    var grupoRedCount = 0;
+    var grupoAmberCount = 0;
+    var grupoSlateCount = 0;
+    var grupoNullCount = counts.prioridades['__NULL__'] || 0;
+    var grupoRedKeys = ['Exportacao', 'KS', 'Marelli', 'MWM'];
+    var grupoAmberKeys = ['Pendencia Comercial'];
+    var grupoSlateKeys = ['Linha Pesada', 'MRP', 'Tryout'];
+
     Object.keys(counts.prioridades).forEach(function(key) {
-        var el = document.getElementById('count-' + key.toLowerCase().replace(' ', '-'));
-        if (!el) {
-            // Tenta por grupo
-            if (['Exportacao', 'KS', 'Marelli', 'MWM'].includes(key)) {
-                el = document.getElementById('count-red');
-            } else if (['Pendencia Comercial'].includes(key)) {
-                el = document.getElementById('count-amber');
-            } else {
-                el = document.getElementById('count-slate');
-            }
-        }
-        if (el) el.innerText = counts.prioridades[key];
+        var count = counts.prioridades[key];
+        
+        if (grupoRedKeys.includes(key)) grupoRedCount += count;
+        else if (grupoAmberKeys.includes(key)) grupoAmberCount += count;
+        else if (grupoSlateKeys.includes(key)) grupoSlateCount += count;
     });
 
+    var elRed = document.getElementById('count-red');
+    if (elRed) elRed.innerText = grupoRedCount;
+    
+    var elAmber = document.getElementById('count-amber');
+    if (elAmber) elAmber.innerText = grupoAmberCount;
+    
+    var elSlate = document.getElementById('count-slate');
+    if (elSlate) elSlate.innerText = grupoSlateCount;
+
+    var elNull = document.getElementById('count-null');
+    if (elNull) elNull.innerText = grupoNullCount;
+
+    // Status counts (filtered visible)
     Object.keys(counts.status).forEach(function(key) {
         var el = document.getElementById('count-status-' + key.toLowerCase().replace(' ', '-'));
         if (el) el.innerText = counts.status[key];
     });
 
+    // Sector counts (filtered visible) - optional
     Object.keys(counts.setores).forEach(function(key) {
         // Contadores de setor podem ser adicionados se necessário
     });
@@ -1137,10 +1162,89 @@ document.addEventListener('DOMContentLoaded', function() {
         btnMinimizeDrawer.addEventListener('click', toggleFilterDrawer);
     }
 
-    // Priority checkboxes
-    document.querySelectorAll('.filter-group .filter-checkbox').forEach(function(cb) {
+    // ===== TAB SWITCHING =====
+    var filterTabs = document.querySelectorAll('.filter-tab');
+    var filterTabPanels = document.querySelectorAll('.filter-tab-panel');
+
+    filterTabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            var targetTab = this.dataset.tab;
+            
+            // Update tab buttons
+            filterTabs.forEach(function(t) {
+                t.classList.remove('active');
+                t.setAttribute('aria-selected', 'false');
+            });
+            this.classList.add('active');
+            this.setAttribute('aria-selected', 'true');
+            
+            // Update tab panels
+            filterTabPanels.forEach(function(panel) {
+                panel.classList.remove('active');
+                panel.classList.add('hidden');
+            });
+            var targetPanel = document.getElementById('tabpanel-' + targetTab);
+            if (targetPanel) {
+                targetPanel.classList.add('active');
+                targetPanel.classList.remove('hidden');
+            }
+        });
+    });
+
+    // ===== PRIORITY CHECKBOXES (All tabs) =====
+    var allPriorityCheckboxes = document.querySelectorAll('.filter-group .filter-checkbox, .filter-priority-list .filter-checkbox');
+    allPriorityCheckboxes.forEach(function(cb) {
         cb.addEventListener('change', function() {
-            filtrosAvancados.prioridades[this.value] = this.checked;
+            var value = this.value;
+            var checked = this.checked;
+            filtrosAvancados.prioridades[value] = checked;
+            
+            // Sync checkboxes across tabs (same value)
+            document.querySelectorAll('.filter-checkbox[value="' + value + '"]').forEach(function(otherCb) {
+                if (otherCb !== this) otherCb.checked = checked;
+            }.bind(this));
+            
+            aplicarFiltrosAvancados();
+        });
+    });
+
+    // ===== PRIORITY PRESET BUTTONS =====
+    var filterPresetBtns = document.querySelectorAll('.filter-preset-btn[data-preset]');
+    filterPresetBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var preset = this.dataset.preset;
+            var newPrioridades = {};
+            
+            // Default all to false
+            ['Exportacao', 'KS', 'Marelli', 'MWM', 'Pendencia Comercial', 'Linha Pesada', 'MRP', 'Tryout', '__NULL__'].forEach(function(p) {
+                newPrioridades[p] = false;
+            });
+            
+            // Apply preset
+            if (preset === 'criticas') {
+                newPrioridades['Exportacao'] = true;
+                newPrioridades['KS'] = true;
+                newPrioridades['Marelli'] = true;
+                newPrioridades['MWM'] = true;
+            } else if (preset === 'comerciais') {
+                newPrioridades['Pendencia Comercial'] = true;
+            } else if (preset === 'padrao') {
+                newPrioridades['Linha Pesada'] = true;
+                newPrioridades['MRP'] = true;
+                newPrioridades['Tryout'] = true;
+            } else if (preset === 'all') {
+                ['Exportacao', 'KS', 'Marelli', 'MWM', 'Pendencia Comercial', 'Linha Pesada', 'MRP', 'Tryout', '__NULL__'].forEach(function(p) {
+                    newPrioridades[p] = true;
+                });
+            }
+            
+            filtrosAvancados.prioridades = newPrioridades;
+            
+            // Update all checkboxes
+            allPriorityCheckboxes.forEach(function(cb) {
+                cb.checked = newPrioridades[cb.value] === true;
+            });
+            
             aplicarFiltrosAvancados();
         });
     });
@@ -1161,7 +1265,50 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Date range
+    // ===== DATE PRESET QUICK BUTTONS =====
+    var filterDatePresetBtns = document.querySelectorAll('.filter-preset-quick-btn[data-preset-date]');
+    filterDatePresetBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var preset = this.dataset.presetDate;
+            var hoje = new Date();
+            var inicio = new Date();
+            var fim = new Date();
+            
+            if (preset === 'month') {
+                // Este Mês
+                inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+                fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+            } else if (preset === 'prev-month') {
+                // Mês Anterior
+                inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+                fim = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+            } else if (preset === 'today') {
+                // Hoje
+                inicio = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+                fim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+            } else if (preset === '7days') {
+                // Últimos 7 dias
+                inicio = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 6);
+                fim = hoje;
+            }
+            
+            var fmt = function(d) {
+                return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            };
+            
+            filtrosAvancados.dataInicio = fmt(inicio);
+            filtrosAvancados.dataFim = fmt(fim);
+            
+            var filterDateStart = document.getElementById('filter-date-start');
+            var filterDateEnd = document.getElementById('filter-date-end');
+            if (filterDateStart) filterDateStart.value = fmt(inicio);
+            if (filterDateEnd) filterDateEnd.value = fmt(fim);
+            
+            aplicarFiltrosAvancados();
+        });
+    });
+
+    // Date range inputs
     var filterDateStart = document.getElementById('filter-date-start');
     var filterDateEnd = document.getElementById('filter-date-end');
     if (filterDateStart) {

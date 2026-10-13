@@ -6,6 +6,11 @@ var cors = require('cors');
 
 app.use(express.json());
 app.use(cors());
+app.use(express.static('C:/Users/tiago/Desktop/Projeto/ordens_producao'));
+
+app.get('/', function(req, res) {
+    res.sendFile('C:/Users/tiago/Desktop/Projeto/ordens_producao/ordens.html');
+});
 
 var pool = new Pool({
     user: process.env.DB_USER || 'postgres',

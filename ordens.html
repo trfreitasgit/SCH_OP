@@ -39,7 +39,7 @@
                 <span>SAP Buffer: Ativo</span>
             </div>
             <button class="btn-icon" id="btn-theme-toggle" title="Alternar Modo Escuro / Claro" type="button">
-                <span class="material-symbols-outlined" id="theme-icon" style="color: #f59e0b;">dark_mode</span>
+                <span class="material-symbols-outlined" id="theme-icon">dark_mode</span>
             </button>
             <div class="user-badge">
                 <div style="display: flex; flex-direction: column; text-align: right;">
@@ -495,7 +495,7 @@
             </button>
         </div>
 
-        <!-- Priority Filter Grouped by Strict Color Lists -->
+        <!-- Priority Filter - Excel-style Tabs + Themed Groups -->
         <section class="filter-section">
             <div class="filter-section-header">
                 <span class="filter-section-label">
@@ -503,75 +503,183 @@
                     Listas de Prioridade
                 </span>
             </div>
-            <div class="filter-groups">
-                <!-- Lista Vermelha -->
-                <fieldset class="filter-group filter-group-red">
-                    <legend class="filter-group-title">
-                        <span class="filter-group-dot red"></span>
-                        Lista Vermelha (Crítica)
-                        <span class="filter-group-count" id="count-red">0</span>
-                    </legend>
-                    <div class="filter-options">
-                        <label class="filter-option">
-                            <input type="checkbox" class="filter-checkbox" value="Exportacao" checked>
-                            <span>Exportação</span>
-                        </label>
-                        <label class="filter-option">
-                            <input type="checkbox" class="filter-checkbox" value="KS" checked>
-                            <span>KS</span>
-                        </label>
-                        <label class="filter-option">
-                            <input type="checkbox" class="filter-checkbox" value="Marelli" checked>
-                            <span>Marelli</span>
-                        </label>
-                        <label class="filter-option">
-                            <input type="checkbox" class="filter-checkbox" value="MWM" checked>
-                            <span>MWM</span>
-                        </label>
-                    </div>
-                </fieldset>
+            
+            <!-- Excel-style Tab Bar -->
+            <div class="filter-tab-bar" role="tablist" aria-label="Visualização de prioridade">
+                <button class="filter-tab active" role="tab" data-tab="groups" aria-selected="true" aria-controls="tabpanel-groups">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">folder</span>
+                    <span>Grupos</span>
+                </button>
+                <button class="filter-tab" role="tab" data-tab="list" aria-selected="false" aria-controls="tabpanel-list">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">list_alt</span>
+                    <span>Lista</span>
+                </button>
+                <button class="filter-tab" role="tab" data-tab="presets" aria-selected="false" aria-controls="tabpanel-presets">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">filter_list</span>
+                    <span>Presets</span>
+                </button>
+            </div>
 
-                <!-- Lista Amarela -->
-                <fieldset class="filter-group filter-group-amber">
-                    <legend class="filter-group-title">
-                        <span class="filter-group-dot amber"></span>
-                        Lista Amarela (Comercial)
-                        <span class="filter-group-count" id="count-amber">0</span>
-                    </legend>
-                    <div class="filter-options">
-                        <label class="filter-option">
-                            <input type="checkbox" class="filter-checkbox" value="Pendencia Comercial" checked>
-                            <span>Pendência Comercial</span>
-                        </label>
-                    </div>
-                </fieldset>
+            <!-- Tab Panel: Grupos (Themed Groups) -->
+            <div class="filter-tab-panel active" id="tabpanel-groups" role="tabpanel" aria-labelledby="tab-groups">
+                <div class="filter-groups">
+                    <!-- Lista Vermelha -->
+                    <fieldset class="filter-group filter-group-red">
+                        <legend class="filter-group-title">
+                            <span class="filter-group-dot red"></span>
+                            Lista Vermelha (Crítica)
+                            <span class="filter-group-count" id="count-red">0</span>
+                        </legend>
+                        <div class="filter-options">
+                            <label class="filter-option">
+                                <input type="checkbox" class="filter-checkbox" value="Exportacao" checked>
+                                <span>Exportação</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="checkbox" class="filter-checkbox" value="KS" checked>
+                                <span>KS</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="checkbox" class="filter-checkbox" value="Marelli" checked>
+                                <span>Marelli</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="checkbox" class="filter-checkbox" value="MWM" checked>
+                                <span>MWM</span>
+                            </label>
+                        </div>
+                    </fieldset>
 
-                <!-- Lista Branca -->
-                <fieldset class="filter-group filter-group-slate">
-                    <legend class="filter-group-title">
-                        <span class="filter-group-dot slate"></span>
-                        Lista Branca (Padrão)
-                        <span class="filter-group-count" id="count-slate">0</span>
-                    </legend>
-                    <div class="filter-options">
-                        <label class="filter-option">
-                            <input type="checkbox" class="filter-checkbox" value="Linha Pesada" checked>
-                            <span>Linha Pesada</span>
-                        </label>
-                        <label class="filter-option">
-                            <input type="checkbox" class="filter-checkbox" value="MRP" checked>
-                            <span>MRP</span>
-                        </label>
-                        <label class="filter-option">
-                            <input type="checkbox" class="filter-checkbox" value="Tryout" checked>
-                            <span>Tryout</span>
-                        </label>
-                    </div>
-                </fieldset>
+                    <!-- Lista Amarela -->
+                    <fieldset class="filter-group filter-group-amber">
+                        <legend class="filter-group-title">
+                            <span class="filter-group-dot amber"></span>
+                            Lista Amarela (Comercial)
+                            <span class="filter-group-count" id="count-amber">0</span>
+                        </legend>
+                        <div class="filter-options">
+                            <label class="filter-option">
+                                <input type="checkbox" class="filter-checkbox" value="Pendencia Comercial" checked>
+                                <span>Pendência Comercial</span>
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    <!-- Lista Branca -->
+                    <fieldset class="filter-group filter-group-slate">
+                        <legend class="filter-group-title">
+                            <span class="filter-group-dot slate"></span>
+                            Lista Branca (Padrão)
+                            <span class="filter-group-count" id="count-slate">0</span>
+                        </legend>
+                        <div class="filter-options">
+                            <label class="filter-option">
+                                <input type="checkbox" class="filter-checkbox" value="Linha Pesada" checked>
+                                <span>Linha Pesada</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="checkbox" class="filter-checkbox" value="MRP" checked>
+                                <span>MRP</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="checkbox" class="filter-checkbox" value="Tryout" checked>
+                                <span>Tryout</span>
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    <!-- Sem Prioridade (NULL) -->
+                    <fieldset class="filter-group filter-group-null">
+                        <legend class="filter-group-title">
+                            <span class="filter-group-dot null"></span>
+                            Sem Prioridade (não definida)
+                            <span class="filter-group-count" id="count-null">0</span>
+                        </legend>
+                        <div class="filter-options">
+                            <label class="filter-option">
+                                <input type="checkbox" class="filter-checkbox" value="__NULL__" checked>
+                                <span>Mostrar ordens sem prioridade</span>
+                            </label>
+                        </div>
+                    </fieldset>
+                </div>
+            </div>
+
+            <!-- Tab Panel: Lista (Flat List) -->
+            <div class="filter-tab-panel hidden" id="tabpanel-list" role="tabpanel" aria-labelledby="tab-list">
+                <div class="filter-options filter-priority-list">
+                    <label class="filter-option filter-priority-item red">
+                        <input type="checkbox" class="filter-checkbox" value="Exportacao" checked>
+                        <span class="filter-priority-dot red"></span>
+                        <span>Exportação</span>
+                    </label>
+                    <label class="filter-option filter-priority-item red">
+                        <input type="checkbox" class="filter-checkbox" value="KS" checked>
+                        <span class="filter-priority-dot red"></span>
+                        <span>KS</span>
+                    </label>
+                    <label class="filter-option filter-priority-item red">
+                        <input type="checkbox" class="filter-checkbox" value="Marelli" checked>
+                        <span class="filter-priority-dot red"></span>
+                        <span>Marelli</span>
+                    </label>
+                    <label class="filter-option filter-priority-item red">
+                        <input type="checkbox" class="filter-checkbox" value="MWM" checked>
+                        <span class="filter-priority-dot red"></span>
+                        <span>MWM</span>
+                    </label>
+                    <label class="filter-option filter-priority-item amber">
+                        <input type="checkbox" class="filter-checkbox" value="Pendencia Comercial" checked>
+                        <span class="filter-priority-dot amber"></span>
+                        <span>Pendência Comercial</span>
+                    </label>
+                    <label class="filter-option filter-priority-item slate">
+                        <input type="checkbox" class="filter-checkbox" value="Linha Pesada" checked>
+                        <span class="filter-priority-dot slate"></span>
+                        <span>Linha Pesada</span>
+                    </label>
+                    <label class="filter-option filter-priority-item slate">
+                        <input type="checkbox" class="filter-checkbox" value="MRP" checked>
+                        <span class="filter-priority-dot slate"></span>
+                        <span>MRP</span>
+                    </label>
+                    <label class="filter-option filter-priority-item slate">
+                        <input type="checkbox" class="filter-checkbox" value="Tryout" checked>
+                        <span class="filter-priority-dot slate"></span>
+                        <span>Tryout</span>
+                    </label>
+                    <label class="filter-option filter-priority-item null">
+                        <input type="checkbox" class="filter-checkbox" value="__NULL__" checked>
+                        <span class="filter-priority-dot null"></span>
+                        <span>Sem Prioridade (não definida)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Tab Panel: Presets (Quick Filters) -->
+            <div class="filter-tab-panel hidden" id="tabpanel-presets" role="tabpanel" aria-labelledby="tab-presets">
+                <div class="filter-preset-options">
+                    <button class="filter-preset-btn" data-preset="criticas" type="button">
+                        <span class="material-symbols-outlined">priority_high</span>
+                        <span>Só Críticas</span>
+                    </button>
+                    <button class="filter-preset-btn" data-preset="comerciais" type="button">
+                        <span class="material-symbols-outlined">business</span>
+                        <span>Comerciais</span>
+                    </button>
+                    <button class="filter-preset-btn" data-preset="padrao" type="button">
+                        <span class="material-symbols-outlined">category</span>
+                        <span>Padrão</span>
+                    </button>
+                    <button class="filter-preset-btn" data-preset="all" type="button">
+                        <span class="material-symbols-outlined">checklist</span>
+                        <span>Todas</span>
+                    </button>
+                </div>
             </div>
         </section>
 
-        <!-- Situation / Status Filter -->
+        <!-- Situation / Status Filter - Cards with Count Badges -->
         <section class="filter-section">
             <span class="filter-section-label">Situação da OP</span>
             <div class="filter-options filter-status">
@@ -596,43 +704,65 @@
             </div>
         </section>
 
-        <!-- Sector Selector (Strict 6 Sectors) -->
+        <!-- Sector Selector - Padded Cards Grid -->
         <section class="filter-section">
             <span class="filter-section-label">Setor Produtivo (6 Setores)</span>
             <div class="filter-options filter-sector">
-                <label class="filter-option">
+                <label class="filter-option filter-sector-card">
                     <input type="checkbox" class="filter-checkbox" value="Montagem" checked>
                     <span>Montagem</span>
                 </label>
-                <label class="filter-option">
+                <label class="filter-option filter-sector-card">
                     <input type="checkbox" class="filter-checkbox" value="Subconjunto" checked>
                     <span>Subconjunto</span>
                 </label>
-                <label class="filter-option">
+                <label class="filter-option filter-sector-card">
                     <input type="checkbox" class="filter-checkbox" value="Celula" checked>
                     <span>Célula</span>
                 </label>
-                <label class="filter-option">
+                <label class="filter-option filter-sector-card">
                     <input type="checkbox" class="filter-checkbox" value="BCM" checked>
                     <span>BCM</span>
                 </label>
-                <label class="filter-option">
+                <label class="filter-option filter-sector-card">
                     <input type="checkbox" class="filter-checkbox" value="Importada" checked>
                     <span>Importada</span>
                 </label>
-                <label class="filter-option">
+                <label class="filter-option filter-sector-card">
                     <input type="checkbox" class="filter-checkbox" value="Usinagem" checked>
                     <span>Usinagem</span>
                 </label>
             </div>
         </section>
 
-        <!-- Date Range Filter -->
+        <!-- Date Range Filter - Excel-style with Presets -->
         <section class="filter-section">
             <span class="filter-section-label">Período de Abertura</span>
+            
+            <!-- Preset Quick Buttons -->
+            <div class="filter-preset-quick">
+                <button class="filter-preset-quick-btn" data-preset-date="month" type="button">
+                    <span class="material-symbols-outlined">calendar_month</span>
+                    <span>Este Mês</span>
+                </button>
+                <button class="filter-preset-quick-btn" data-preset-date="prev-month" type="button">
+                    <span class="material-symbols-outlined">event</span>
+                    <span>Mês Anterior</span>
+                </button>
+                <button class="filter-preset-quick-btn" data-preset-date="today" type="button">
+                    <span class="material-symbols-outlined">today</span>
+                    <span>Hoje</span>
+                </button>
+                <button class="filter-preset-quick-btn" data-preset-date="7days" type="button">
+                    <span class="material-symbols-outlined">date_range</span>
+                    <span>Últimos 7 dias</span>
+                </button>
+            </div>
+
+            <!-- Date Inputs -->
             <div class="filter-date-range">
-                <input type="date" id="filter-date-start" class="filter-date-input">
-                <input type="date" id="filter-date-end" class="filter-date-input">
+                <input type="date" id="filter-date-start" class="filter-date-input" placeholder="Início">
+                <input type="date" id="filter-date-end" class="filter-date-input" placeholder="Fim">
             </div>
         </section>
 
