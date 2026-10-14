@@ -94,6 +94,9 @@
         </div>
     </aside>
 
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
     <!-- MAIN VIEWPORT -->
     <div class="main-wrapper" id="main-content-wrapper">
         <main class="dashboard-container">
@@ -808,17 +811,42 @@
         const mainWrapper = document.getElementById('main-content-wrapper');
         const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
         const sidebarIcon = document.getElementById('sidebar-toggle-icon');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+        function closeMobileSidebar() {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('visible');
+        }
 
         if (btnToggleSidebar) {
             btnToggleSidebar.addEventListener('click', () => {
-                document.body.classList.toggle('sidebar-collapsed');
-                if (document.body.classList.contains('sidebar-collapsed')) {
-                    sidebarIcon.innerText = 'menu';
+                if (window.innerWidth <= 1023) {
+                    // Mobile: toggle off-canvas sidebar
+                    sidebar.classList.toggle('open');
+                    sidebarOverlay.classList.toggle('visible');
                 } else {
-                    sidebarIcon.innerText = 'menu_open';
+                    // Desktop: toggle collapsed state
+                    document.body.classList.toggle('sidebar-collapsed');
+                    if (document.body.classList.contains('sidebar-collapsed')) {
+                        sidebarIcon.innerText = 'menu';
+                    } else {
+                        sidebarIcon.innerText = 'menu_open';
+                    }
                 }
             });
         }
+
+        // Close mobile sidebar when clicking overlay
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', closeMobileSidebar);
+        }
+
+        // Close mobile sidebar on resize to desktop
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 1023) {
+                closeMobileSidebar();
+            }
+        });
 
         // 2. Dark/Light Theme Toggle
         const btnThemeToggle = document.getElementById('btn-theme-toggle');
@@ -830,7 +858,7 @@
                 htmlRoot.classList.toggle('dark');
                 const isDark = htmlRoot.classList.contains('dark');
                 themeIcon.innerText = isDark ? 'dark_mode' : 'light_mode';
-                themeIcon.style.color = isDark ? '#f59e0b' : '#f97316';
+                themeIcon.style.color = 'var(--primary)';
             });
         }
 

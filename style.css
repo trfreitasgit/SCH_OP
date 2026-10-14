@@ -2410,6 +2410,265 @@ html:not(.dark) .app-sidebar {
   }
 }
 
+/* ==========================================================================
+   RESPONSIVE DESIGN - MOBILE & TABLET
+   ========================================================================== */
+
+/* Sidebar off-canvas on mobile */
+@media (max-width: 1023px) {
+  .app-sidebar {
+    position: fixed;
+    left: 0;
+    top: var(--header-height);
+    bottom: 0;
+    width: 280px;
+    max-width: 85vw;
+    transform: translateX(-100%);
+    z-index: 60;
+    box-shadow: 20px 0 40px rgba(0, 0, 0, 0.4);
+  }
+  
+  .app-sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 55;
+  }
+  
+  .sidebar-overlay.visible {
+    display: block;
+  }
+  
+  .sidebar-collapsed .app-sidebar {
+    width: 280px;
+    max-width: 85vw;
+  }
+  
+  .main-wrapper {
+    margin-left: 0;
+    padding: 16px;
+  }
+  
+  .sidebar-collapsed .main-wrapper {
+    margin-left: 0;
+  }
+}
+
+/* Header responsive */
+@media (max-width: 1023px) {
+  .app-header {
+    padding: 0 16px;
+  }
+  
+  .brand-title span:last-child {
+    display: none;
+  }
+  
+  .brand-sub {
+    display: none;
+  }
+  
+  .badge-telemetry span:last-child {
+    display: none;
+  }
+  
+  .user-badge div:first-child {
+    display: none;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 639px) {
+  .app-header {
+    padding: 0 12px;
+  }
+  
+  .brand-logo {
+    height: 28px;
+  }
+  
+  .brand-schadek {
+    font-size: 15px;
+  }
+  
+  .main-wrapper {
+    padding: 12px;
+  }
+  
+  .dashboard-container {
+    gap: 16px;
+  }
+}
+
+/* KPI Grid responsive */
+@media (max-width: 1023px) {
+  .kpi-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  
+  .kpi-card {
+    padding: 14px 16px;
+  }
+  
+  .kpi-number {
+    font-size: 24px;
+  }
+  
+  .kpi-icon-box {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 639px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Toolbar responsive */
+@media (max-width: 1023px) {
+  .toolbar-card {
+    padding: 12px 16px;
+  }
+  
+  .toolbar-title {
+    font-size: 18px;
+  }
+  
+  #btnCopiar span:last-child {
+    display: none;
+  }
+  
+  .btn-secondary-action span:last-child {
+    display: none;
+  }
+}
+
+/* Sector tabs responsive */
+@media (max-width: 1023px) {
+  .sector-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 8px;
+  }
+  
+  .priority-legends {
+    display: none;
+  }
+  
+  #btnTodos {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  .btnSetor {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+
+/* Table responsive improvements */
+@media (max-width: 1023px) {
+  #tabelaOrdens thead th {
+    padding: 10px 8px;
+    font-size: 10px;
+  }
+  
+  #tabelaOrdens tbody td {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+  
+  #tabelaOrdens tbody td[data-coluna="observacao"] {
+    max-width: 150px;
+  }
+}
+
+/* Batch panel responsive */
+@media (max-width: 1023px) {
+  #batch-panel {
+    padding: 16px;
+  }
+  
+  .batch-grid-textareas {
+    grid-template-columns: 1fr;
+  }
+  
+  .batch-controls-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+  
+  .batch-actions-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  #btnGerarPrevia,
+  #btnConfirmarLote {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Pagination responsive */
+@media (max-width: 1023px) {
+  .table-footer-pagination {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+  
+  .pagination-info {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .pagination-size {
+    justify-content: space-between;
+  }
+  
+  .pagination-nav {
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .pagination-pages {
+    order: -1;
+  }
+}
+
+@media (max-width: 480px) {
+  .pagination-btn,
+  .pagination-page {
+    min-width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+  
+  .pagination-ellipsis {
+    display: none;
+  }
+}
+
+/* Filter drawer button on mobile */
+@media (max-width: 1023px) {
+  #btn-toggle-filters {
+    display: inline-flex;
+  }
+}
+
 /* Light mode adjustments */
 html:not(.dark) .filter-drawer {
   background: rgba(255, 255, 255, 0.85);
