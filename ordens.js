@@ -32,11 +32,14 @@ async function authFetch(url, options = {}) {
         headers['Authorization'] = `Bearer ${token}`;
     }
     
+    console.log('[DEBUG] authFetch:', url, 'token:', token ? 'present' : 'missing');
     const response = await fetch(url, {
         ...options,
         headers,
         credentials: 'include'
     });
+    
+    console.log('[DEBUG] authFetch response:', url, 'status:', response.status);
     
     if (response.status === 401) {
         clearAccessToken();
@@ -197,8 +200,11 @@ function ordenarPor(campo) {
 // Carga inicial das ordens pendentes
 async function carregarOrdensPendentes() {
     try {
+        console.log('[DEBUG] carregarOrdensPendentes: iniciando fetch...');
         const resposta = await authFetch('http://localhost:3000/ordens/pendentes');
+        console.log('[DEBUG] carregarOrdensPendentes: response status:', resposta.status);
         const dados = await resposta.json();
+        console.log('[DEBUG] carregarOrdensPendentes: dados recebidos:', dados.length, 'ordens');
         ordensCarregadas = dados;
         paginacao.paginaAtual = 1;
         paginacao.itensPorPagina = 10;
@@ -210,7 +216,6 @@ async function carregarOrdensPendentes() {
         console.error('Erro ao carregar ordens:', erro);
     }
 }
-carregarOrdensPendentes();
 
 // COPIAR ORDENS PARA O SAP: copia exatamente as ordens que estÃ£o aparecendo na tela (filtradas)
 document.getElementById('btnCopiar').addEventListener('click', function() {
@@ -617,7 +622,6 @@ async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
     try {
         var resposta = await authFetch('http://localhost:3000/ordens/' + id, {
             method: 'PUT',
-            body: JSON.stringify({ [coluna]: novoValor })
             body: JSON.stringify({ [coluna]: novoValor })
         });
 
@@ -1509,7 +1513,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-// Inicialização dedicada das ordens - garante DOM pronto
+// Inicializaï¿½ï¿½o dedicada das ordens - garante DOM pronto
 document.addEventListener('DOMContentLoaded', function() {
     console.log('[DEBUG] DOMContentLoaded - inicializando ordens');
     carregarOrdensPendentes();
