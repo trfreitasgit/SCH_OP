@@ -9,15 +9,15 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.AUTH_PORT || 3001;
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL_AUTH || process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY_AUTH || process.env.SUPABASE_SERVICE_ROLE_KEY;
 const jwtSecret = process.env.JWT_SECRET;
 const jwtExpiresIn = '15m';
 const refreshTokenDays = 7;
 
 if (!supabaseUrl || !supabaseServiceKey || !jwtSecret) {
     console.error('❌ Variáveis de ambiente obrigatórias faltando:');
-    console.error('   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, JWT_SECRET');
+    console.error('   SUPABASE_URL_AUTH, SUPABASE_SERVICE_ROLE_KEY_AUTH, JWT_SECRET');
     process.exit(1);
 }
 

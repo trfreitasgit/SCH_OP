@@ -15,10 +15,24 @@ app.use(cookieParser());
 
 const AUTH_API_URL = process.env.AUTH_API_URL || 'http://localhost:3001';
 
+async function verifyTokenWithAuthServer(token) {
+    try {
+        const response = await fetch(`${AUTH_API_URL}/auth/me`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) return null;
+        return await response.json();
+    } catch {
+        return null;
+    }
+}
+
 // Supabase client
 var supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.SUPABASE_URL_ORDENS || process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY_ORDENS || process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 function isApiRequest(req) {
