@@ -78,6 +78,9 @@
   --status-green: #10b981;
   --status-green-bg: rgba(16, 185, 129, 0.14);
   --status-green-border: rgba(16, 185, 129, 0.3);
+  --status-slate: #94a3b8;
+  --status-slate-bg: rgba(148, 163, 184, 0.14);
+  --status-slate-border: rgba(148, 163, 184, 0.3);
 
   /* Legacy aliases for backward compatibility */
   --bg-canvas: var(--canvas);
@@ -232,6 +235,9 @@ html:not(.dark) {
   --status-green: #059669;
   --status-green-bg: #ecfdf5;
   --status-green-border: #a7f3d0;
+  --status-slate: #64748b;
+  --status-slate-bg: #f1f5f9;
+  --status-slate-border: #cbd5e1;
 
   /* Legacy aliases */
   --bg-canvas: var(--canvas);
@@ -1366,6 +1372,86 @@ html:not(.dark) .status-encerrado {
   background-color: var(--status-amber-bg);
   color: var(--status-amber);
   border-color: var(--status-amber-border);
+}
+
+/* ==========================================================================
+   PRIORITY BADGES (PILL SHAPE) - COLUNA PRIORIDADE
+   ========================================================================== */
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.priority-badge::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Lista Vermelha (Crítica) - Exportacao, KS, Marelli, MWM */
+.priority-vermelha {
+  background-color: var(--status-red-bg);
+  color: var(--status-red);
+  border-color: var(--status-red-border);
+}
+
+.priority-vermelha::before {
+  background-color: var(--status-red);
+  box-shadow: 0 0 6px var(--status-red);
+}
+
+/* Lista Amarela (Comercial) - Pendencia Comercial */
+.priority-amarela {
+  background-color: var(--status-amber-bg);
+  color: var(--status-amber);
+  border-color: var(--status-amber-border);
+}
+
+.priority-amarela::before {
+  background-color: var(--status-amber);
+  box-shadow: 0 0 6px var(--status-amber);
+}
+
+/* Lista Branca (Padrão) - Linha Pesada, MRP, Tryout */
+.priority-branca {
+  background-color: var(--status-slate-bg);
+  color: var(--status-slate);
+  border-color: var(--status-slate-border);
+}
+
+.priority-branca::before {
+  background-color: var(--status-slate);
+  box-shadow: 0 0 6px var(--status-slate);
+}
+
+/* Light mode overrides */
+html:not(.dark) .priority-vermelha {
+  background-color: var(--status-red-bg);
+  color: var(--status-red);
+  border-color: var(--status-red-border);
+}
+
+html:not(.dark) .priority-amarela {
+  background-color: var(--status-amber-bg);
+  color: var(--status-amber);
+  border-color: var(--status-amber-border);
+}
+
+html:not(.dark) .priority-branca {
+  background-color: var(--status-slate-bg);
+  color: var(--status-slate);
+  border-color: var(--status-slate-border);
 }
 
 /* ==========================================================================
@@ -2956,3 +3042,4 @@ html:not(.dark) .filter-footer {
   border-color: var(--status-green-border);
   color: var(--status-green);
 }
+.app-footer { text-align: center; padding: 20px 0; font-family: var(--font-mono); font-size: 11px; color: var(--text-subtle); opacity: 0.6; transition: var(--transition); } .app-footer:hover { opacity: 1; color: var(--primary); }

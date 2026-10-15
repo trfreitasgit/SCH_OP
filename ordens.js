@@ -163,6 +163,28 @@ function getStatusBadge(situacao) {
     return '<span class="status-badge ' + classe + '">' + label + '</span>';
 }
 
+function getPriorityBadge(prioridade) {
+    if (!prioridade) return '-';
+    var classe = '';
+    var label = prioridade;
+    // Lista Vermelha (Crítica)
+    if (['Exportacao', 'KS', 'Marelli', 'MWM'].includes(prioridade)) {
+        classe = 'priority-vermelha';
+    }
+    // Lista Amarela (Comercial)
+    else if (prioridade === 'Pendencia Comercial') {
+        classe = 'priority-amarela';
+    }
+    // Lista Branca (Padrão)
+    else if (['Linha Pesada', 'MRP', 'Tryout'].includes(prioridade)) {
+        classe = 'priority-branca';
+    }
+    else {
+        return label;
+    }
+    return '<span class="priority-badge ' + classe + '">' + label + '</span>';
+}
+
 function renderizarTabela(lista) {
     atualizarKPIs(listaFiltrada);
     var tabela = document.getElementById('tabelaOrdens');
@@ -179,7 +201,7 @@ function renderizarTabela(lista) {
             + '<td data-coluna="situacao" title="Duplo clique para editar">' + getStatusBadge(ordem.situacao) + '</td>'
             + '<td data-coluna="observacao" title="Duplo clique para editar">' + (ordem.observacao || '') + '</td>'
             + '<td data-coluna="setor" title="Duplo clique para editar">' + (ordem.setor || '') + '</td>'
-            + '<td data-coluna="prioridade" title="Duplo clique para editar">' + (ordem.prioridade || '') + '</td>'
+            + '<td data-coluna="prioridade" title="Duplo clique para editar">' + getPriorityBadge(ordem.prioridade) + '</td>'
             + '<td data-coluna="dia_analise" title="Duplo clique para editar data de análise">' + formatarDiaAnalise(ordem.dia_analise) + '</td>'
             + '<td class="td-acoes">'
             + '  <button type="button" class="btn-excluir-linha" data-id="' + ordem.id + '" data-op="' + (ordem.numero_op || '') + '" title="Excluir ordem">'
@@ -667,7 +689,16 @@ async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
         }
 
         celulaEmEdicao = null;
-        renderizarTabela(listaAtual);
+        // Atualizar listaFiltrada se o item estiver nela (filtros ativos)
+        var idxFiltrada = listaFiltrada.findIndex(function(o) { return String(o.id) === String(id); });
+        if (idxFiltrada !== -1) {
+            if (ordemAtualizada) {
+                listaFiltrada[idxFiltrada] = ordemAtualizada;
+            } else {
+                listaFiltrada[idxFiltrada][coluna] = novoValor;
+            }
+        }
+        renderizarTabelaComPaginacao(listaFiltrada);
         mostrarToast('Ordem atualizada com sucesso!');
     } catch (err) {
         alert('Erro de conexão ao salvar: ' + err.message);
@@ -856,9 +887,18 @@ async function aplicarEdicaoEmMassa() {
                     listaAtual[idxAtual][campo] = valor;
                 }
             }
+            // Atualizar listaFiltrada também
+            var idxFiltrada = listaFiltrada.findIndex(function(o) { return o.id === r.id; });
+            if (idxFiltrada !== -1) {
+                if (updated) {
+                    listaFiltrada[idxFiltrada] = updated;
+                } else {
+                    listaFiltrada[idxFiltrada][campo] = valor;
+                }
+            }
         });
 
-        renderizarTabela(listaAtual);
+        renderizarTabelaComPaginacao(listaFiltrada);
 
         if (erros.length > 0) {
             var msgs = erros.map(function(e) { return 'ID ' + e.id + ': ' + (e.dados.erro || 'Erro'); }).join('\n');
@@ -891,8 +931,9 @@ async function removerOrdemIndividual(id, op) {
         }
 
         ordensCarregadas = ordensCarregadas.filter(function(o) { return o.id !== id; });
+        listaFiltrada = listaFiltrada.filter(function(o) { return o.id !== id; });
         listaAtual = listaAtual.filter(function(o) { return o.id !== id; });
-        renderizarTabela(listaAtual);
+        renderizarTabelaComPaginacao(listaFiltrada);
         mostrarToast('Ordem OP ' + (op || id) + ' removida com sucesso!');
     } catch (err) {
         alert('Erro de conexão ao remover ordem: ' + err.message);
@@ -927,8 +968,9 @@ async function removerOrdensEmMassa() {
         }
 
         ordensCarregadas = ordensCarregadas.filter(function(o) { return !ids.includes(o.id); });
+        listaFiltrada = listaFiltrada.filter(function(o) { return !ids.includes(o.id); });
         listaAtual = listaAtual.filter(function(o) { return !ids.includes(o.id); });
-        renderizarTabela(listaAtual);
+        renderizarTabelaComPaginacao(listaFiltrada);
         mostrarToast(ids.length + ' ordens removidas com sucesso!');
     } catch (err) {
         alert('Erro de conexão ao excluir em massa: ' + err.message);
@@ -1083,6 +1125,17 @@ function atualizarContadoresFiltros() {
 
 // ===== FUNÇÕES DE PAGINAÇÃO =====
 function renderizarTabelaComPaginacao(lista) {
+    // Proteção: detectar se está recebendo lista fatiada (page slice) em vez da lista completa
+    // Se totalItens já foi definido e a nova lista tem menos itens que o esperado, logar aviso
+    if (paginacao.totalItens > 0 && lista.length < paginacao.totalItens && lista.length <= paginacao.itensPorPagina) {
+        console.warn('[renderizarTabelaComPaginacao] ALERTA: Recebida lista com', lista.length, 'itens, mas totalItens era', paginacao.totalItens, '. Provável uso indevido de listaAtual em vez de listaFiltrada.');
+        // Fallback seguro: usar listaFiltrada existente se disponível
+        if (listaFiltrada && listaFiltrada.length >= paginacao.totalItens) {
+            console.log('[renderizarTabelaComPaginacao] Usando listaFiltrada existente como fallback.');
+            lista = listaFiltrada;
+        }
+    }
+
     listaFiltrada = lista;
     paginacao.totalItens = lista.length;
     paginacao.totalPaginas = Math.ceil(paginacao.totalItens / paginacao.itensPorPagina) || 1;
@@ -1152,7 +1205,7 @@ function atualizarControlesPaginacao() {
                 var page = parseInt(this.dataset.page, 10);
                 if (page !== paginacao.paginaAtual) {
                     paginacao.paginaAtual = page;
-                    renderizarTabelaComPaginacao(listaAtual);
+                    renderizarTabelaComPaginacao(listaFiltrada);
                 }
             });
         });

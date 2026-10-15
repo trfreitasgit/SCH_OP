@@ -1,4 +1,9 @@
 node_modules/
 .agents/
 .env
-scratch_check.js.qa/
+.maestri/
+.stitch/
+.qa/
+aider_env/
+scratch_check.js
+DEPLOY_RENDER.md
