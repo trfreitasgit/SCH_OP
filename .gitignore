@@ -7,3 +7,4 @@ node_modules/
 aider_env/
 scratch_check.js
 DEPLOY_RENDER.md
+supabase_migration_auth.sql
