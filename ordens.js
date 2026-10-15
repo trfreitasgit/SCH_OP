@@ -143,6 +143,26 @@ function atualizarKPIs(lista) {
     if (elPrazo) elPrazo.innerText = pagasNoPrazo;
 }
 
+function getStatusBadge(situacao) {
+    if (!situacao) return '-';
+    var classe = '';
+    var label = situacao;
+    switch (situacao) {
+        case 'Falta Pagar':
+            classe = 'status-falta-pagar';
+            break;
+        case 'Pago':
+            classe = 'status-pago';
+            break;
+        case 'Encerrado':
+            classe = 'status-encerrado';
+            break;
+        default:
+            return label;
+    }
+    return '<span class="status-badge ' + classe + '">' + label + '</span>';
+}
+
 function renderizarTabela(lista) {
     atualizarKPIs(listaFiltrada);
     var tabela = document.getElementById('tabelaOrdens');
@@ -156,7 +176,7 @@ function renderizarTabela(lista) {
             + '<td data-coluna="total_pecas" style="text-align: right;" title="Duplo clique para editar">' + (ordem.total_pecas || 0) + '</td>'
             + '<td data-coluna="data_abertura" title="Duplo clique para editar">' + formatarData(ordem.data_abertura) + '</td>'
             + '<td data-coluna="material" title="Duplo clique para editar (máx 8 dígitos)">' + (ordem.material || '') + '</td>'
-            + '<td data-coluna="situacao" title="Duplo clique para editar">' + (ordem.situacao || '') + '</td>'
+            + '<td data-coluna="situacao" title="Duplo clique para editar">' + getStatusBadge(ordem.situacao) + '</td>'
             + '<td data-coluna="observacao" title="Duplo clique para editar">' + (ordem.observacao || '') + '</td>'
             + '<td data-coluna="setor" title="Duplo clique para editar">' + (ordem.setor || '') + '</td>'
             + '<td data-coluna="prioridade" title="Duplo clique para editar">' + (ordem.prioridade || '') + '</td>'

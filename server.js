@@ -5,6 +5,8 @@ var { createClient } = require('@supabase/supabase-js');
 var cors = require('cors');
 var cookieParser = require('cookie-parser');
 var fetch = require('node-fetch');
+const path = require('path');
+
 
 app.use(express.json());
 app.use(cors({
@@ -114,14 +116,14 @@ async function proxyAuthRequest(req, res) {
 }
 
 app.get('/login', function(req, res) {
-    res.sendFile('C:/Users/tiago/Desktop/Projeto/ordens_producao/login.html');
+    res.sendFile(path.join(__dirname, 'login.html'));
 });
 
 // Proxy auth routes
 app.use('/auth', proxyAuthRequest);
 
 app.get('/', requireAuth, function(req, res) {
-    res.sendFile('C:/Users/tiago/Desktop/Projeto/ordens_producao/ordens.html');
+    res.sendFile(path.join(__dirname, 'ordens.html'));
 });
 
 var pesos = {
@@ -392,7 +394,7 @@ app.delete('/ordens', requireAuth, async function (req, res) {
     res.json({ mensagem: 'Ordens removidas com sucesso', removidas: data.length });
 });
 
-app.use(express.static('C:/Users/tiago/Desktop/Projeto/ordens_producao'));
+app.use(express.static(__dirname));
 
 var porta = process.env.PORT || 3000;
 app.listen(porta, function () {

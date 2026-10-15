@@ -1289,6 +1289,86 @@ html:not(.dark) .app-sidebar {
 }
 
 /* ==========================================================================
+   STATUS BADGES (PILL SHAPE) - COLUNA SITUAÇÃO
+   ========================================================================== */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.status-badge::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Falta Pagar - Vermelho */
+.status-falta-pagar {
+  background-color: var(--status-red-bg);
+  color: var(--status-red);
+  border-color: var(--status-red-border);
+}
+
+.status-falta-pagar::before {
+  background-color: var(--status-red);
+  box-shadow: 0 0 6px var(--status-red);
+}
+
+/* Pago - Verde */
+.status-pago {
+  background-color: var(--status-green-bg);
+  color: var(--status-green);
+  border-color: var(--status-green-border);
+}
+
+.status-pago::before {
+  background-color: var(--status-green);
+  box-shadow: 0 0 6px var(--status-green);
+}
+
+/* Encerrado - Amarelo/Âmbar */
+.status-encerrado {
+  background-color: var(--status-amber-bg);
+  color: var(--status-amber);
+  border-color: var(--status-amber-border);
+}
+
+.status-encerrado::before {
+  background-color: var(--status-amber);
+  box-shadow: 0 0 6px var(--status-amber);
+}
+
+/* Light mode overrides */
+html:not(.dark) .status-falta-pagar {
+  background-color: var(--status-red-bg);
+  color: var(--status-red);
+  border-color: var(--status-red-border);
+}
+
+html:not(.dark) .status-pago {
+  background-color: var(--status-green-bg);
+  color: var(--status-green);
+  border-color: var(--status-green-border);
+}
+
+html:not(.dark) .status-encerrado {
+  background-color: var(--status-amber-bg);
+  color: var(--status-amber);
+  border-color: var(--status-amber-border);
+}
+
+/* ==========================================================================
    BATCH REGISTRATION PANEL (MANDATORY ACCORDION)
    ========================================================================== */
 #batch-panel {
