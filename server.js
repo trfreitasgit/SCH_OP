@@ -141,11 +141,38 @@ var PRIORIDADES_VALIDAS = Object.keys(pesos);
 var SITUACOES_VALIDAS = ['Falta Pagar', 'Pago', 'Encerrado'];
 var SETORES_VALIDOS = ['Montagem', 'Subconjunto', 'Celula', 'BCM', 'Importada', 'Usinagem'];
 
+var CAMPOS_ORDENACAO_VALIDOS = [
+    'id', 'numero_op', 'setor', 'total_pecas', 'material',
+    'data_abertura', 'dia_analise', 'situacao', 'prioridade',
+    'observacao', 'peso_prioridade', 'created_at', 'updated_at'
+];
+
+function buildOrderQuery(query, sort, order, defaultOrders) {
+    var campo = sort && CAMPOS_ORDENACAO_VALIDOS.includes(sort) ? sort : null;
+    var direcao = order === 'desc' ? false : true;
+    
+    if (campo) {
+        return query.order(campo, { ascending: direcao });
+    }
+    
+    return defaultOrders.reduce(function(q, o) {
+        return q.order(o.campo, { ascending: o.ascending, nullsLast: o.nullsLast });
+    }, query);
+}
+
 app.get('/ordens', requireAuth, async function (req, res) {
-    var { data, error } = await supabase
+    var sort = req.query.sort;
+    var order = req.query.order;
+    
+    var query = supabase
         .from('ordens_producao')
-        .select('*')
-        .order('id', { ascending: false });
+        .select('*');
+    
+    query = buildOrderQuery(query, sort, order, [
+        { campo: 'id', ascending: false }
+    ]);
+    
+    var { data, error } = await query;
     
     if (error) {
         return res.status(500).json({ erro: error.message });
@@ -154,12 +181,20 @@ app.get('/ordens', requireAuth, async function (req, res) {
 });
 
 app.get('/ordens/pendentes', requireAuth, async function (req, res) {
-    var { data, error } = await supabase
+    var sort = req.query.sort;
+    var order = req.query.order;
+    
+    var query = supabase
         .from('ordens_producao')
         .select('*')
-        .neq('situacao', 'Encerrado')
-        .order('peso_prioridade', { ascending: true, nullsLast: true })
-        .order('id', { ascending: false });
+        .neq('situacao', 'Encerrado');
+    
+    query = buildOrderQuery(query, sort, order, [
+        { campo: 'peso_prioridade', ascending: true, nullsLast: true },
+        { campo: 'id', ascending: false }
+    ]);
+    
+    var { data, error } = await query;
     
     if (error) {
         return res.status(500).json({ erro: error.message });

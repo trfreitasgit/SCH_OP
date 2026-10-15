@@ -201,27 +201,20 @@ function ordenarPor(campo) {
         ordemCrescente = true;
     }
 
-    var ordenadas = listaAtual.slice().sort(function (a, b) {
-        var valA = a[campo];
-        var valB = b[campo];
-        if (campo === 'total_pecas') {
-            valA = Number(valA) || 0;
-            valB = Number(valB) || 0;
-        }
-        if (valA > valB) return ordemCrescente ? 1 : -1;
-        if (valA < valB) return ordemCrescente ? -1 : 1;
-        return 0;
-    });
-    listaAtual = ordenadas;
+    // Server-side sorting: fetch from API with sort/order params
     paginacao.paginaAtual = 1;
-    renderizarTabelaComPaginacao(ordenadas);
+    carregarOrdensPendentes(campoOrdenado, ordemCrescente ? 'asc' : 'desc');
 }
 
 // Carga inicial das ordens pendentes
-async function carregarOrdensPendentes() {
+async function carregarOrdensPendentes(sort, order) {
     try {
         console.log('[DEBUG] carregarOrdensPendentes: iniciando fetch...');
-        const resposta = await authFetch('http://localhost:3000/ordens/pendentes');
+        var url = 'http://localhost:3000/ordens/pendentes';
+        if (sort && order) {
+            url += '?sort=' + encodeURIComponent(sort) + '&order=' + encodeURIComponent(order);
+        }
+        const resposta = await authFetch(url);
         console.log('[DEBUG] carregarOrdensPendentes: response status:', resposta.status);
         const dados = await resposta.json();
         console.log('[DEBUG] carregarOrdensPendentes: dados recebidos:', dados.length, 'ordens');
