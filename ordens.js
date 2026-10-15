@@ -232,7 +232,7 @@ function ordenarPor(campo) {
 async function carregarOrdensPendentes(sort, order) {
     try {
         console.log('[DEBUG] carregarOrdensPendentes: iniciando fetch...');
-        var url = 'http://localhost:3000/ordens/pendentes';
+        var url = '/ordens/pendentes';
         if (sort && order) {
             url += '?sort=' + encodeURIComponent(sort) + '&order=' + encodeURIComponent(order);
         }
@@ -377,7 +377,7 @@ document.getElementById('btnConfirmarLote').addEventListener('click', async func
 
     try {
         var promessas = previaOrdens.map(function (ordem) {
-            return authFetch('http://localhost:3000/ordens', {
+            return authFetch('/ordens', {
                 method: 'POST',
                 body: JSON.stringify(ordem)
             }).then(function(res) {
@@ -413,7 +413,7 @@ document.getElementById('btnConfirmarLote').addEventListener('click', async func
 // Logout function
 async function logout() {
     try {
-        await authFetch('http://localhost:3000/auth/logout', { method: 'POST' });
+        await authFetch('/auth/logout', { method: 'POST' });
     } catch (e) {
         // Ignore errors on logout
     }
@@ -426,7 +426,7 @@ document.getElementById('btn-logout')?.addEventListener('click', logout);
 // Load user info on page load
 async function loadUserInfo() {
     try {
-        const response = await authFetch('http://localhost:3000/auth/me');
+        const response = await authFetch('/auth/me');
         const user = await response.json();
         document.getElementById('user-name').textContent = user.name || user.email;
         document.getElementById('user-role').textContent = user.role || 'operator';
@@ -655,7 +655,7 @@ async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
     editor.disabled = true;
 
     try {
-        var resposta = await authFetch('http://localhost:3000/ordens/' + id, {
+        var resposta = await authFetch('/ordens/' + id, {
             method: 'PUT',
             body: JSON.stringify({ [coluna]: novoValor })
         });
@@ -855,7 +855,7 @@ async function aplicarEdicaoEmMassa() {
 
     try {
         var promessas = ids.map(function(id) {
-            return authFetch('http://localhost:3000/ordens/' + id, {
+            return authFetch('/ordens/' + id, {
                 method: 'PUT',
                 body: JSON.stringify({ [campo]: valor })
             }).then(function(res) {
@@ -920,7 +920,7 @@ async function removerOrdemIndividual(id, op) {
     }
 
     try {
-        var res = await authFetch('http://localhost:3000/ordens/' + id, {
+        var res = await authFetch('/ordens/' + id, {
             method: 'DELETE'
         });
         var dados = await res.json();
@@ -956,7 +956,7 @@ async function removerOrdensEmMassa() {
     if (btn) btn.disabled = true;
 
     try {
-        var res = await authFetch('http://localhost:3000/ordens', {
+        var res = await authFetch('/ordens', {
             method: 'DELETE',
             body: JSON.stringify({ ids: ids })
         });
