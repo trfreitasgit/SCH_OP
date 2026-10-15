@@ -1,64 +1,64 @@
-# ?? Industrial Production Dashboard
+ï»¿# ğŸ­ Industrial Production Dashboard
 ## High-Density Operations Control for PCP
 
 ![Version](https://img.shields.io/badge/version-4.9.0--PROD-orange) ![Status](https://img.shields.io/badge/status-Stable-green) ![Architecture](https://img.shields.io/badge/arch-Fullstack-blue)
 
-Este sistema é uma solução de engenharia de software focada no controle de **Ordens de Produção (OPs)**. Ele foi projetado para ambientes industriais onde a precisão, a densidade de informação e a confiabilidade são inegociáveis. O objetivo é transformar dados brutos de produção em decisões operacionais rápidas.
+Este sistema Ã© uma soluÃ§Ã£o de engenharia de software focada no controle de **Ordens de ProduÃ§Ã£o (OPs)**. Ele foi projetado para ambientes industriais onde a precisÃ£o, a densidade de informaÃ§Ã£o e a confiabilidade sÃ£o inegociÃ¡veis. O objetivo Ã© transformar dados brutos de produÃ§Ã£o em decisÃµes operacionais rÃ¡pidas.
 
 ---
 
-## ?? A Filosofia: O 'Porquê' do Design
+## ğŸ¨ A Filosofia: O 'PorquÃª' do Design
 
-Diferente de dashboards corporativos genéricos, este sistema segue a escola do **Industrial High-Density Modernism**. Cada decisão de design tem um motivo técnico:
+Diferente de dashboards corporativos genÃ©ricos, este sistema segue a escola do **Industrial High-Density Modernism**. Cada decisÃ£o de design tem um motivo tÃ©cnico:
 
-### ?? Dark Mode Operacional
-**Por que?** Operadores e supervisores passam turnos inteiros olhando para telas. O fundo *Obsidian Dark* reduz drasticamente a fadiga ocular e aumenta o contraste de cores críticas.
+### ğŸŒ™ Dark Mode Operacional
+**Por que?** Operadores e supervisores passam turnos inteiros olhando para telas. O fundo *Obsidian Dark* reduz drasticamente a fadiga ocular e aumenta o contraste de cores crÃ­ticas.
 
-### ?? Densidade de Dados Máxima
-**Por que?** Em um ambiente de PCP, rolar a página excessivamente é perda de tempo. O layout é compactado para que o máximo de ordens seja visível em uma única tela, permitindo a visão sistêmica do fluxo fabril.
+### ğŸ“Š Densidade de Dados MÃ¡xima
+**Por que?** Em um ambiente de PCP, rolar a pÃ¡gina excessivamente Ã© perda de tempo. O layout Ã© compactado para que o mÃ¡ximo de ordens seja visÃ­vel em uma Ãºnica tela, permitindo a visÃ£o sistÃªmica do fluxo fabril.
 
-### ?? Semântica de Cores Instantânea
-**Por que?** O cérebro humano processa cores antes de ler textos. 
+### ğŸŒˆ SemÃ¢ntica de Cores InstantÃ¢nea
+**Por que?** O cÃ©rebro humano processa cores antes de ler textos. 
 - **Vermelho (Falta Pagar):** Alerta imediato de bloqueio financeiro.
-- **Verde (Pago):** Fluxo liberado para produção.
-- **Âmbar (Encerrado):** Processo finalizado.
-A inclusão de 'bolinhas' (dots) ao lado das labels serve como guia visual rápido para escaneamento vertical.
+- **Verde (Pago):** Fluxo liberado para produÃ§Ã£o.
+- **Ã‚mbar (Encerrado):** Processo finalizado.
+A inclusÃ£o de 'bolinhas' (dots) ao lado das labels serve como guia visual rÃ¡pido para escaneamento vertical.
 
-### ?? Tipografia Técnica
-**Por que?** Utilizamos fontes monoespaçadas (JetBrains Mono) para números de OP e códigos de material. Isso garante que cada dígito ocupe o mesmo espaço, evitando erros de leitura em listas extensas.
+### âŒ¨ï¸ Tipografia TÃ©cnica
+**Por que?** Utilizamos fontes monoespaÃ§adas (JetBrains Mono) para nÃºmeros de OP e cÃ³digos de material. Isso garante que cada dÃ­gito ocupe o mesmo espaÃ§o, evitando erros de leitura em listas extensas.
 
 ---
 
-## ?? Como Funciona (A Arquitetura)
+## âš™ï¸ Como Funciona (A Arquitetura)
 
-O sistema opera sob uma arquitetura de micro-serviços simplificada para garantir segurança e performance:
+O sistema opera sob uma arquitetura de micro-serviÃ§os simplificada para garantir seguranÃ§a e performance:
 
 ### 1. Camada de Interface (Frontend)
-Desenvolvida em **Vanilla JS**, evitando a sobrecarga de frameworks pesados para garantir que o dashboard carregue instantaneamente, mesmo em redes industriais instáveis.
+Desenvolvida em **Vanilla JS**, evitando a sobrecarga de frameworks pesados para garantir que o dashboard carregue instantaneamente, mesmo em redes industriais instÃ¡veis.
 
-### 2. Orquestração de Backend (API Gateway)
-Um servidor **Node.js/Express** atua como ponte entre a interface e o banco de dados, aplicando regras de negócio (como o cálculo automático de peso_prioridade e dia_analise).
+### 2. OrquestraÃ§Ã£o de Backend (API Gateway)
+Um servidor **Node.js/Express** atua como ponte entre a interface e o banco de dados, aplicando regras de negÃ³cio (como o cÃ¡lculo automÃ¡tico de peso_prioridade e dia_analise).
 
-### 3. Segurança de Identidade (Auth Server)
-Um servidor de autenticação isolado gerencia:
-- **JWT (JSON Web Tokens):** Tokens de acesso curtos para sessões seguras.
-- **Refresh Tokens:** Armazenados em cookies HttpOnly para manter o usuário conectado sem comprometer a segurança.
+### 3. SeguranÃ§a de Identidade (Auth Server)
+Um servidor de autenticaÃ§Ã£o isolado gerencia:
+- **JWT (JSON Web Tokens):** Tokens de acesso curtos para sessÃµes seguras.
+- **Refresh Tokens:** Armazenados em cookies HttpOnly para manter o usuÃ¡rio conectado sem comprometer a seguranÃ§a.
 
-### 4. Persistência de Dados (Supabase/PostgreSQL)
-Utiliza a potência do **PostgreSQL** com políticas de **RLS (Row Level Security)**, garantindo que os dados sejam acessados apenas por roles autorizadas.
-
----
-
-## ?? Funcionalidades Chave
-
-- **Importação em Massa:** Validação rigorosa de dígitos para evitar erros de entrada de dados vindo de ERPs ou planilhas.
-- **Priorização Inteligente:** Organização automática de ordens baseada em listas de urgência (Crítica, Comercial, Padrão).
-- **Edição em Tempo Real:** Alterações inline que atualizam o banco de dados e a interface instantaneamente.
-- **Filtros Segmentados:** Divisão por setores produtivos para foco total em cada etapa da linha.
+### 4. PersistÃªncia de Dados (Supabase/PostgreSQL)
+Utiliza a potÃªncia do **PostgreSQL** com polÃ­ticas de **RLS (Row Level Security)**, garantindo que os dados sejam acessados apenas por roles autorizadas.
 
 ---
 
-## ??? Stack Técnica
+## ğŸ”‘ Funcionalidades Chave
+
+- **ImportaÃ§Ã£o em Massa:** ValidaÃ§Ã£o rigorosa de dÃ­gitos para evitar erros de entrada de dados vindo de ERPs ou planilhas.
+- **PriorizaÃ§Ã£o Inteligente:** OrganizaÃ§Ã£o automÃ¡tica de ordens baseada em listas de urgÃªncia (CrÃ­tica, Comercial, PadrÃ£o).
+- **EdiÃ§Ã£o em Tempo Real:** AlteraÃ§Ãµes inline que atualizam o banco de dados e a interface instantaneamente.
+- **Filtros Segmentados:** DivisÃ£o por setores produtivos para foco total em cada etapa da linha.
+
+---
+
+## ğŸ› ï¸ Stack TÃ©cnica
 
 | Componente | Tecnologia |
 |------------|------------|
@@ -70,7 +70,7 @@ Utiliza a potência do **PostgreSQL** com políticas de **RLS (Row Level Security)
 
 ---
 
-## ?? Instalação Rápida
+## ğŸš€ InstalaÃ§Ã£o RÃ¡pida
 
 1. **Clone e Instale:**
    ```bash
@@ -88,8 +88,8 @@ Utiliza a potência do **PostgreSQL** com políticas de **RLS (Row Level Security)
 
 ---
 
-## ?? Deploy
+## â˜ï¸ Deploy
 
-Para instruções de subida para o ambiente de produção, consulte o arquivo DEPLOY_RENDER.md.
+Para instruÃ§Ãµes de subida para o ambiente de produÃ§Ã£o, consulte o arquivo DEPLOY_RENDER.md.
 
 **Industrial Dashboard** | *Efficiency through precision.*
