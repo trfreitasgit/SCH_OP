@@ -22,10 +22,10 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
     "node-fetch": "^2.7.0",
-    "pg": "^8.23.0",
-    "puppeteer": "^25.13.0"
+    "pg": "^8.23.0"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "puppeteer": "^25.14.0"
   }
 }
