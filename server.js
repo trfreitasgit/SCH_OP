@@ -1,4 +1,4 @@
-require('dotenv').config();
+﻿require('dotenv').config();
 var express = require('express');
 var app = express();
 var { createClient } = require('@supabase/supabase-js');
@@ -383,4 +383,8 @@ app.listen(porta, function () {
         ('http://localhost:' + porta);
 
     console.log('Login: ' + baseUrl.replace(/\/+$/, '') + '/login');
+});
+
+app.get('/ping', (req, res) => {
+    res.status(200).send('pong');
 });
