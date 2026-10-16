@@ -1,5 +1,6 @@
-// Cliente Supabase (definido em supabase-config.js, carregado antes deste script)
-const sbClient = window.sbClient;
+// Cliente Supabase via lazy init (window.getSbClient, definido em
+// supabase-config.js). Nao guardamos uma constante global: o SDK da CDN pode
+// ainda nao estar disponivel quando este script e avaliado.
 
 function initTheme() {
     const savedTheme = localStorage.getItem('theme');
@@ -90,6 +91,7 @@ async function handleLogin(event) {
     try {
         console.log('[DEBUG] Sending login request to Supabase...');
 
+        const sbClient = window.getSbClient();
         if (!sbClient) {
             throw new Error('Cliente Supabase não inicializado (supabase-config.js).');
         }
@@ -208,6 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // /login e o browser fica em loop. Guarda anti-loop para o caso do navegador
     // bloquear cookies (avisa o usuario em vez de redirecionar infinitamente).
     (async () => {
+        const sbClient = window.getSbClient();
         if (!sbClient) return;
 
         const { data } = await sbClient.auth.getSession();

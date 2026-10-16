@@ -8,12 +8,17 @@ var celulaEmEdicao = null;
 
 // ==========================================================================
 // SUPABASE AUTH (client-side) - token gerenciado pelo SDK, nao mais no localStorage
-// Cliente definido em supabase-config.js (carregado antes deste script)
+// Cliente criado sob demanda via window.getSbClient() (supabase-config.js).
+// NAO guardamos o cliente numa constante global: o SDK da CDN pode ainda nao
+// estar disponivel quando ordens.js e avaliado.
 // ==========================================================================
-const sbClient = window.sbClient;
+function getClient() {
+    return window.getSbClient ? window.getSbClient() : null;
+}
 
 // Retorna a sessao atual do Supabase (renova o JWT automaticamente se expirado)
 async function getSession() {
+    const sbClient = getClient();
     if (!sbClient) return null;
     try {
         const { data, error } = await sbClient.auth.getSession();
@@ -59,7 +64,7 @@ async function authFetch(url, options = {}) {
     if (response.status === 401) {
         console.warn('[AUTH] 401 - encerrando sessao Supabase');
         window.sbClearAuthCookie();
-        try { await sbClient.auth.signOut(); } catch (e) { /* ignore */ }
+        try { await getClient()?.auth.signOut(); } catch (e) { /* ignore */ }
         window.location.href = '/login';
         throw new Error('Não autenticado');
     }
@@ -69,8 +74,14 @@ async function authFetch(url, options = {}) {
 
 // Mantem o cookie de sessao (usado pelo servidor na navegacao de pagina) alinhado
 // com a sessao do Supabase: renovacao de token atualiza o cookie; logout limpa.
-if (sbClient) {
-    sbClient.auth.onAuthStateChange(function (evento, session) {
+// Registro tolerante a lazy init: se o SDK ainda nao estiver disponivel, tenta de
+// novo no DOMContentLoaded (a flag evita registrar o listener duas vezes).
+var _authListenerRegistrado = false;
+function registrarAuthListener() {
+    const client = getClient();
+    if (!client || _authListenerRegistrado) return;
+    _authListenerRegistrado = true;
+    client.auth.onAuthStateChange(function (evento, session) {
         if (evento === 'TOKEN_REFRESHED' || evento === 'SIGNED_IN' || evento === 'INITIAL_SESSION') {
             window.sbSyncAuthCookie(session);
         } else if (evento === 'SIGNED_OUT') {
@@ -78,11 +89,13 @@ if (sbClient) {
         }
     });
 }
+registrarAuthListener();
 
 // Dashboard carregou => o loop de redirect terminou; zera o contador anti-loop e
 // garante o cookie fresco para as proximas navegacoes de pagina.
 document.addEventListener('DOMContentLoaded', async function () {
     sessionStorage.removeItem('sb_redirect_bounces');
+    registrarAuthListener();
     const session = await getSession();
     if (session) window.sbSyncAuthCookie(session);
 });
@@ -451,9 +464,7 @@ document.getElementById('btnConfirmarLote').addEventListener('click', async func
 async function logout() {
     try {
         window.sbClearAuthCookie();
-        if (sbClient) {
-            await sbClient.auth.signOut();
-        }
+        await getClient()?.auth.signOut();
     } catch (e) {
         console.warn('[AUTH] signOut error:', e.message);
     }
@@ -465,6 +476,7 @@ document.getElementById('btn-logout')?.addEventListener('click', logout);
 // Load user info on page load - usuario vem do JWT do Supabase (nao existe mais /auth/me)
 async function loadUserInfo() {
     try {
+        const sbClient = getClient();
         if (!sbClient) return;
 
         const { data, error } = await sbClient.auth.getUser();
