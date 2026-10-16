@@ -375,5 +375,12 @@ app.use(express.static(__dirname));
 var porta = process.env.PORT || 3000;
 app.listen(porta, function () {
     console.log('Servidor no ar na porta ' + porta + '!');
-    console.log('Login: http://localhost:' + porta + '/login');
+
+    // Log de acesso: no Render a variavel RENDER_EXTERNAL_URL traz a URL publica
+    // real (ex.: https://schadek-op.onrender.com). Em dev, cai no localhost.
+    var baseUrl = process.env.RENDER_EXTERNAL_URL ||
+        process.env.FRONTEND_URL ||
+        ('http://localhost:' + porta);
+
+    console.log('Login: ' + baseUrl.replace(/\/+$/, '') + '/login');
 });
