@@ -213,6 +213,31 @@ function getStatusBadge(situacao) {
     return '<span class="status-badge ' + classe + '">' + label + '</span>';
 }
 
+// Escapa texto para insercao segura em HTML (evita que &, <, > quebrem o layout)
+function escaparHtml(valor) {
+    if (valor === null || valor === undefined) return '';
+    return String(valor)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+// Escapa texto para uso dentro de atributo (title="..."): precisa tratar aspas
+function escaparAtributo(valor) {
+    return escaparHtml(valor)
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// TEXTO LONGO NA COLUNA OBSERVACAO -> truncado por CSS (ellipsis) + tooltip nativo.
+// Com texto: o title mostra a observacao COMPLETA. Sem texto: mantem a dica de edicao.
+function celulaObservacao(observacao) {
+    var texto = (observacao === null || observacao === undefined) ? '' : String(observacao).trim();
+    var titulo = texto ? texto : 'Duplo clique para editar';
+    return '<td data-coluna="observacao" title="' + escaparAtributo(titulo) + '">'
+        + escaparHtml(texto) + '</td>';
+}
+
 function getPriorityBadge(prioridade) {
     if (!prioridade) return '-';
     var classe = '';
@@ -249,7 +274,7 @@ function renderizarTabela(lista) {
             + '<td data-coluna="data_abertura" title="Duplo clique para editar">' + formatarData(ordem.data_abertura) + '</td>'
             + '<td data-coluna="material" title="Duplo clique para editar (máx 8 dígitos)">' + (ordem.material || '') + '</td>'
             + '<td data-coluna="situacao" title="Duplo clique para editar">' + getStatusBadge(ordem.situacao) + '</td>'
-            + '<td data-coluna="observacao" title="Duplo clique para editar">' + (ordem.observacao || '') + '</td>'
+            + celulaObservacao(ordem.observacao)
             + '<td data-coluna="setor" title="Duplo clique para editar">' + (ordem.setor || '') + '</td>'
             + '<td data-coluna="prioridade" title="Duplo clique para editar">' + getPriorityBadge(ordem.prioridade) + '</td>'
             + '<td data-coluna="dia_analise" title="Duplo clique para editar data de análise">' + formatarDiaAnalise(ordem.dia_analise) + '</td>'
