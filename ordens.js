@@ -6,49 +6,86 @@ var campoOrdenado = null;
 var ordemCrescente = true;
 var celulaEmEdicao = null;
 
-// Auth token management
-function getAccessToken() {
-    return localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+// ==========================================================================
+// SUPABASE AUTH (client-side) - token gerenciado pelo SDK, nao mais no localStorage
+// Cliente definido em supabase-config.js (carregado antes deste script)
+// ==========================================================================
+const sbClient = window.sbClient;
+
+// Retorna a sessao atual do Supabase (renova o JWT automaticamente se expirado)
+async function getSession() {
+    if (!sbClient) return null;
+    try {
+        const { data, error } = await sbClient.auth.getSession();
+        if (error) {
+            console.warn('[AUTH] getSession error:', error.message);
+            return null;
+        }
+        return data.session || null;
+    } catch (e) {
+        console.warn('[AUTH] getSession exception:', e.message);
+        return null;
+    }
 }
 
-function setAccessToken(token) {
-    localStorage.setItem('access_token', token);
+// Token JWT do Supabase (sempre lido da sessao atual)
+async function getAccessToken() {
+    const session = await getSession();
+    return session ? session.access_token : null;
 }
 
-function clearAccessToken() {
-    localStorage.removeItem('access_token');
-    sessionStorage.removeItem('access_token');
-}
-
-// Authenticated fetch wrapper
+// Authenticated fetch wrapper: injeta o JWT do Supabase em toda requisicao ao backend
 async function authFetch(url, options = {}) {
-    const token = getAccessToken();
+    const token = await getAccessToken();
+
+    if (!token) {
+        console.warn('[AUTH] Sem sessao ativa - redirecionando para /login');
+        window.location.href = '/login';
+        throw new Error('Sessão expirada');
+    }
+
     const headers = {
         'Content-Type': 'application/json',
-        ...options.headers
+        ...options.headers,
+        'Authorization': `Bearer ${token}`
     };
-    
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    console.log('[DEBUG] authFetch:', url, 'token:', token ? 'present' : 'missing');
+
     const response = await fetch(url, {
         ...options,
         headers,
         credentials: 'include'
     });
-    
-    console.log('[DEBUG] authFetch response:', url, 'status:', response.status);
-    
+
     if (response.status === 401) {
-        clearAccessToken();
+        console.warn('[AUTH] 401 - encerrando sessao Supabase');
+        window.sbClearAuthCookie();
+        try { await sbClient.auth.signOut(); } catch (e) { /* ignore */ }
         window.location.href = '/login';
         throw new Error('Não autenticado');
     }
-    
+
     return response;
 }
+
+// Mantem o cookie de sessao (usado pelo servidor na navegacao de pagina) alinhado
+// com a sessao do Supabase: renovacao de token atualiza o cookie; logout limpa.
+if (sbClient) {
+    sbClient.auth.onAuthStateChange(function (evento, session) {
+        if (evento === 'TOKEN_REFRESHED' || evento === 'SIGNED_IN' || evento === 'INITIAL_SESSION') {
+            window.sbSyncAuthCookie(session);
+        } else if (evento === 'SIGNED_OUT') {
+            window.sbClearAuthCookie();
+        }
+    });
+}
+
+// Dashboard carregou => o loop de redirect terminou; zera o contador anti-loop e
+// garante o cookie fresco para as proximas navegacoes de pagina.
+document.addEventListener('DOMContentLoaded', async function () {
+    sessionStorage.removeItem('sb_redirect_bounces');
+    const session = await getSession();
+    if (session) window.sbSyncAuthCookie(session);
+});
 
 // Estado dos filtros avançados
 var filtrosAvancados = {
@@ -410,29 +447,62 @@ document.getElementById('btnConfirmarLote').addEventListener('click', async func
 }
 });
 
-// Logout function
+// Logout function - encerra a sessao no Supabase (nao existe mais rota local /auth/logout)
 async function logout() {
     try {
-        await authFetch('/auth/logout', { method: 'POST' });
+        window.sbClearAuthCookie();
+        if (sbClient) {
+            await sbClient.auth.signOut();
+        }
     } catch (e) {
-        // Ignore errors on logout
+        console.warn('[AUTH] signOut error:', e.message);
     }
-    clearAccessToken();
     window.location.href = '/login';
 }
 
 document.getElementById('btn-logout')?.addEventListener('click', logout);
 
-// Load user info on page load
+// Load user info on page load - usuario vem do JWT do Supabase (nao existe mais /auth/me)
 async function loadUserInfo() {
     try {
-        const response = await authFetch('/auth/me');
-        const user = await response.json();
-        document.getElementById('user-name').textContent = user.name || user.email;
-        document.getElementById('user-role').textContent = user.role || 'operator';
+        if (!sbClient) return;
+
+        const { data, error } = await sbClient.auth.getUser();
+
+        if (error || !data || !data.user) {
+            // Sessao invalida/ausente => limpa tudo e volta para o login.
+            // Erro de rede/timeout => NAO redireciona (evita loop de redirect).
+            const status = error && error.status;
+            const semSessao = !error || status === 401 || status === 403 ||
+                (error.name || '').indexOf('Session') !== -1;
+            console.warn('[AUTH] getUser falhou:', error && (error.name + ': ' + error.message));
+            if (semSessao) {
+                window.sbClearAuthCookie();
+                try { await sbClient.auth.signOut(); } catch (e) { /* ignore */ }
+                window.location.href = '/login';
+            }
+            return;
+        }
+
+        const user = data.user;
+        const meta = user.user_metadata || {};
+        const nomeExibicao = meta.name || meta.full_name || user.email || 'Usuário';
+        const papel = meta.role || 'operator';
+
+        const elNome = document.getElementById('user-name');
+        const elRole = document.getElementById('user-role');
         const avatar = document.getElementById('user-avatar');
-        if (avatar && user.name) {
-            avatar.textContent = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+        if (elNome) elNome.textContent = nomeExibicao;
+        if (elRole) elRole.textContent = papel;
+        if (avatar) {
+            avatar.textContent = nomeExibicao
+                .split(' ')
+                .filter(Boolean)
+                .map(n => n[0])
+                .join('')
+                .toUpperCase()
+                .slice(0, 2);
         }
     } catch (e) {
         console.error('Failed to load user info:', e);

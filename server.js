@@ -4,7 +4,6 @@ var app = express();
 var { createClient } = require('@supabase/supabase-js');
 var cors = require('cors');
 var cookieParser = require('cookie-parser');
-var fetch = require('node-fetch');
 const path = require('path');
 
 
@@ -14,22 +13,6 @@ app.use(cors({
     credentials: true
 }));
 app.use(cookieParser());
-
-const AUTH_API_URL = process.env.AUTH_API_URL || 'http://localhost:3001';
-
-async function verifyTokenWithAuthServer(token) {
-    try {
-        const response = await fetch(`${AUTH_API_URL}/auth/me`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        if (!response.ok) return null;
-        return await response.json();
-    } catch {
-        return null;
-    }
-}
 
 // Supabase client
 var supabase = createClient(
@@ -41,11 +24,10 @@ function isApiRequest(req) {
     return req.headers.accept?.includes('application/json') ||
            req.headers['x-requested-with'] === 'XMLHttpRequest' ||
            req.path.startsWith('/api/') ||
-           req.path.startsWith('/ordens') ||
-           req.path.startsWith('/auth/');
+           req.path.startsWith('/ordens');
 }
 
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
     const authHeader = req.headers.authorization;
     const cookieToken = req.cookies?.access_token;
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : cookieToken;
@@ -57,70 +39,29 @@ function requireAuth(req, res, next) {
         return res.redirect(302, '/login');
     }
 
-    verifyTokenWithAuthServer(token).then(user => {
-        if (!user) {
+    try {
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        
+        if (error || !user) {
             if (isApiRequest(req)) {
                 return res.status(401).json({ error: 'Token inválido ou expirado' });
             }
             return res.redirect(302, '/login');
         }
+        
         req.user = user;
         next();
-    }).catch(() => {
+    } catch (err) {
         if (isApiRequest(req)) {
             return res.status(401).json({ error: 'Erro ao validar token' });
         }
         return res.redirect(302, '/login');
-    });
-}
-
-async function proxyAuthRequest(req, res) {
-    const path = req.path.replace('/auth', '');
-    const url = `${AUTH_API_URL}/auth${path}`;
-    
-    try {
-        const headers = {
-            'Content-Type': 'application/json',
-        };
-        
-        // Forward Authorization header if present
-        if (req.headers.authorization) {
-            headers['Authorization'] = req.headers.authorization;
-        }
-        
-        // Forward cookies if present
-        if (req.headers.cookie) {
-            headers['Cookie'] = req.headers.cookie;
-        }
-        
-        const response = await fetch(url, {
-            method: req.method,
-            headers: headers,
-            body: req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined,
-            credentials: 'include'
-        });
-
-        const setCookies = response.headers.getSetCookie?.() || 
-            response.headers.raw()['set-cookie'] || 
-            [response.headers.get('set-cookie')].filter(Boolean);
-        if (setCookies.length > 0) {
-            res.setHeader('set-cookie', setCookies);
-        }
-
-        const data = await response.json();
-        res.status(response.status).json(data);
-    } catch (error) {
-        console.error('Auth proxy error:', error);
-        res.status(502).json({ error: 'Erro ao comunicar com servidor de autenticação' });
     }
 }
 
 app.get('/login', function(req, res) {
     res.sendFile(path.join(__dirname, 'login.html'));
 });
-
-// Proxy auth routes
-app.use('/auth', proxyAuthRequest);
 
 app.get('/', requireAuth, function(req, res) {
     res.sendFile(path.join(__dirname, 'ordens.html'));

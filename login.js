@@ -1,18 +1,5 @@
-const AUTH_API_URL = '';
-
-// Auth token management
-function getAccessToken() {
-    return localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
-}
-
-function setAccessToken(token) {
-    localStorage.setItem('access_token', token);
-}
-
-function clearAccessToken() {
-    localStorage.removeItem('access_token');
-    sessionStorage.removeItem('access_token');
-}
+// Cliente Supabase (definido em supabase-config.js, carregado antes deste script)
+const sbClient = window.sbClient;
 
 function initTheme() {
     const savedTheme = localStorage.getItem('theme');
@@ -65,7 +52,7 @@ function setLoadingState(loading) {
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            Validando credenciais...
+            Autenticando com Supabase...
         `;
     } else {
         submitBtn.disabled = false;
@@ -101,27 +88,38 @@ async function handleLogin(event) {
     if (loginFeedback) loginFeedback.classList.add('hidden');
 
     try {
-        console.log('[DEBUG] Sending login request...');
-        const response = await fetch('/auth/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            credentials: 'include',
-            body: JSON.stringify({ email: identifier, password })
-        });
+        console.log('[DEBUG] Sending login request to Supabase...');
 
-        console.log('[DEBUG] Response status:', response.status);
-        const data = await response.json();
-        console.log('[DEBUG] Response data:', data);
-
-        if (!response.ok) {
-            throw new Error(data.error || 'Erro na autenticação');
+        if (!sbClient) {
+            throw new Error('Cliente Supabase não inicializado (supabase-config.js).');
         }
 
-        setAccessToken(data.access_token);
+        // Authenticate directly against Supabase Auth (no local /auth/* route)
+        const { data, error } = await sbClient.auth.signInWithPassword({
+            email: identifier,
+            password: password
+        });
 
-        showFeedback('Autenticado com sucesso! Redirecionando...', 'success');
+        console.log('[DEBUG] Supabase response:', { data: !!data, error });
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        if (!data.session) {
+            throw new Error('Sessão não criada. Verifique suas credenciais.');
+        }
+
+        // Supabase persiste a sessao (localStorage) e renova o JWT automaticamente.
+        // ordens.js le o token sempre via sbClient.auth.getSession().
+        // Cookie de sessao: sem ele o servidor nao reconhece a navegacao para /
+        // (navegacao de pagina nao envia header Authorization) e o browser entra
+        // em loop de redirecionamento.
+        const cookieOk = window.sbSyncAuthCookie(data.session);
+        sessionStorage.removeItem('sb_redirect_bounces');
+        if (!cookieOk) {
+            console.warn('[AUTH] cookie de sessao nao gravado - login seguira somente por header');
+        }
 
         const rememberTerminal = document.getElementById('rememberTerminal');
         if (rememberTerminal?.checked) {
@@ -130,12 +128,14 @@ async function handleLogin(event) {
             localStorage.removeItem('remember_session');
         }
 
+        showFeedback('Autenticado com sucesso! Redirecionando...', 'success');
+
         console.log('[DEBUG] Redirecting to /');
         window.location.href = '/';
 
-    } catch (error) {
-        console.error('Login error:', error);
-        showFeedback(error.message || 'Falha na autenticação. Tente novamente.', 'error');
+    } catch (err) {
+        console.error('Login error:', err);
+        showFeedback(err.message || 'Falha na autenticação. Tente novamente.', 'error');
     } finally {
         setLoadingState(false);
     }
@@ -202,5 +202,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Init theme
     initTheme();
-    console.log('[DEBUG] Login page initialized');
+
+    // Sessao Supabase ja ativa? Sincroniza o cookie e vai para o dashboard.
+    // O cookie precisa existir ANTES do redirect, senao o servidor devolve 302
+    // /login e o browser fica em loop. Guarda anti-loop para o caso do navegador
+    // bloquear cookies (avisa o usuario em vez de redirecionar infinitamente).
+    (async () => {
+        if (!sbClient) return;
+
+        const { data } = await sbClient.auth.getSession();
+        if (!data || !data.session) return;
+
+        const cookieOk = window.sbSyncAuthCookie(data.session);
+        const bounces = parseInt(sessionStorage.getItem('sb_redirect_bounces') || '0', 10) + 1;
+
+        if (!cookieOk || bounces > 2) {
+            sessionStorage.removeItem('sb_redirect_bounces');
+            showFeedback('Sessão ativa, porém o cookie de acesso foi bloqueado pelo navegador. Libere cookies para este site e recarregue a página.', 'error');
+            return;
+        }
+
+        sessionStorage.setItem('sb_redirect_bounces', String(bounces));
+        console.log('[DEBUG] Sessão Supabase ativa - redirecionando para /');
+        window.location.href = '/';
+    })();
+
+    console.log('[DEBUG] Login page initialized with Supabase Auth');
 });

@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "auth": "node auth-server.js",
-    "dev": "concurrently \"npm run start\" \"npm run auth\"",
+    "dev": "npm run start",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -15,12 +14,10 @@
   "type": "commonjs",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
-    "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.6",
     "dotenv": "^18.0.7",
     "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.2",
     "node-fetch": "^2.7.0",
     "pg": "^8.23.0"
   },
