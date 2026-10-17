@@ -229,14 +229,137 @@ function escaparAtributo(valor) {
         .replace(/'/g, '&#39;');
 }
 
-// TEXTO LONGO NA COLUNA OBSERVACAO -> truncado por CSS (ellipsis) + tooltip nativo.
-// Com texto: o title mostra a observacao COMPLETA. Sem texto: mantem a dica de edicao.
+// TEXTO LONGO NA COLUNA OBSERVACAO -> truncado por CSS (ellipsis) e o texto
+// completo vai para data-tooltip-texto, consumido pelo tooltip premium (abaixo).
+// O atributo title nao e usado aqui: ele abriria o balao nativo junto do nosso.
+// As celulas vazias mantem o title com a dica de edicao (nao ha texto a exibir).
 function celulaObservacao(observacao) {
     var texto = (observacao === null || observacao === undefined) ? '' : String(observacao).trim();
-    var titulo = texto ? texto : 'Duplo clique para editar';
-    return '<td data-coluna="observacao" title="' + escaparAtributo(titulo) + '">'
+    if (!texto) {
+        return '<td data-coluna="observacao" title="Duplo clique para editar"></td>';
+    }
+    return '<td data-coluna="observacao" tabindex="0" data-tooltip-texto="' + escaparAtributo(texto) + '">'
         + escaparHtml(texto) + '</td>';
 }
+
+// ==========================================================================
+// TOOLTIP PREMIUM DA COLUNA OBSERVACAO (Level 3 do assets/DESIGN.md)
+// Opcao DISCRETA: so aparece quando o texto esta de fato truncado
+// (scrollWidth > clientWidth) - celulas curtas nao disparam nada.
+// Singleton apensado ao <body> (position: fixed): o td tem overflow: hidden e a
+// tabela overflow-x: auto, entao qualquer pseudo-elemento dentro da celula
+// seria recortado. Eventos delegados: a tabela e reconstruida por innerHTML a
+// cada ordenacao, filtro ou troca de pagina.
+// ==========================================================================
+var tooltipObsEl = null;
+var tooltipObsTimer = null;
+var SELETOR_TOOLTIP_OBS = '#tabelaOrdens tbody td[data-coluna="observacao"][data-tooltip-texto]';
+
+function garantirTooltipObs() {
+    if (tooltipObsEl && document.body.contains(tooltipObsEl)) return tooltipObsEl;
+    tooltipObsEl = document.createElement('div');
+    tooltipObsEl.className = 'ui-tooltip';
+    tooltipObsEl.id = 'tooltip-observacao';
+    tooltipObsEl.setAttribute('role', 'tooltip');
+    document.body.appendChild(tooltipObsEl);
+    return tooltipObsEl;
+}
+
+function textoEstaTruncado(td) {
+    return td.scrollWidth > td.clientWidth + 1;
+}
+
+function posicionarTooltipObs(td) {
+    var el = garantirTooltipObs();
+    var alvo = td.getBoundingClientRect();
+    var caixa = el.getBoundingClientRect();
+    var margem = 8;
+
+    // Abaixo por padrao; vira para cima se nao houver espaco.
+    var cabeAbaixo = (window.innerHeight - alvo.bottom) >= (caixa.height + margem);
+    var acima = !cabeAbaixo && alvo.top > (caixa.height + margem);
+    var top = acima ? (alvo.top - caixa.height - margem) : (alvo.bottom + margem);
+
+    // Limita ao viewport na horizontal.
+    var left = alvo.left + (alvo.width / 2) - (caixa.width / 2);
+    var maxLeft = window.innerWidth - caixa.width - margem;
+    if (left < margem) left = margem;
+    if (left > maxLeft) left = maxLeft;
+
+    el.style.top = Math.round(top) + 'px';
+    el.style.left = Math.round(left) + 'px';
+    el.classList.toggle('is-above', acima);
+    el.classList.toggle('is-below', !acima);
+
+    // Seta apontando para o centro da celula.
+    var setaX = (alvo.left + (alvo.width / 2)) - left;
+    if (setaX < 12) setaX = 12;
+    if (setaX > caixa.width - 12) setaX = caixa.width - 12;
+    el.style.setProperty('--arrow-x', Math.round(setaX) + 'px');
+}
+
+function mostrarTooltipObs(td) {
+    if (!td || !textoEstaTruncado(td)) return;
+    var texto = td.getAttribute('data-tooltip-texto');
+    if (!texto) return;
+
+    var el = garantirTooltipObs();
+    el.textContent = texto; // textContent: sem HTML, logo sem XSS e sem precisar de escape
+    posicionarTooltipObs(td);
+    el.classList.add('is-visible');
+    td.setAttribute('aria-describedby', el.id);
+}
+
+function esconderTooltipObs() {
+    if (tooltipObsTimer) {
+        clearTimeout(tooltipObsTimer);
+        tooltipObsTimer = null;
+    }
+    if (tooltipObsEl) tooltipObsEl.classList.remove('is-visible');
+}
+
+var seletorTooltipObs = SELETOR_TOOLTIP_OBS;
+
+function celulaObservacaoDoAlvo(alvo) {
+    if (!alvo || !alvo.closest) return null;
+    return alvo.closest(seletorTooltipObs);
+}
+
+// Ponteiro: abre apos 150ms de hover; fecha ao sair da celula ou ao entrar em outra
+document.addEventListener('mouseover', function (e) {
+    var td = celulaObservacaoDoAlvo(e.target);
+    if (!td) {
+        if (tooltipObsEl && tooltipObsEl.classList.contains('is-visible')) esconderTooltipObs();
+        return;
+    }
+    if (tooltipObsTimer) clearTimeout(tooltipObsTimer);
+    tooltipObsTimer = setTimeout(function() { mostrarTooltipObs(td); }, 150);
+}, true);
+
+document.addEventListener('mouseout', function (e) {
+    var td = celulaObservacaoDoAlvo(e.target);
+    if (!td) return;
+    var destino = celulaObservacaoDoAlvo(e.relatedTarget);
+    if (destino !== td) esconderTooltipObs();
+}, true);
+
+// Teclado: a celula recebe tabindex quando tem texto
+document.addEventListener('focusin', function (e) {
+    var td = celulaObservacaoDoAlvo(e.target);
+    if (td) mostrarTooltipObs(td);
+}, true);
+
+document.addEventListener('focusout', function (e) {
+    if (celulaObservacaoDoAlvo(e.target)) esconderTooltipObs();
+}, true);
+
+// Nunca deixar o balao "fantasma" na tela (o scroll do container nao borbulha,
+// por isso a captura). Escape e clique tambem fecham.
+window.addEventListener('scroll', esconderTooltipObs, true);
+window.addEventListener('resize', esconderTooltipObs);
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') esconderTooltipObs();
+});
 
 function getPriorityBadge(prioridade) {
     if (!prioridade) return '-';
@@ -612,6 +735,8 @@ document.querySelectorAll('[data-campo]').forEach(function (cabecalho) {
 // TAREFA 1: EDIÇÃO ESTILO PLANILHA (INLINE)
 // ==========================================================================
 function iniciarEdicaoCelula(td) {
+    esconderTooltipObs(); // o balao nao pode ficar aberto sobre o editor inline
+
     if (celulaEmEdicao && celulaEmEdicao !== td) {
         cancelarEdicao(celulaEmEdicao);
     }

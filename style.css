@@ -1281,6 +1281,108 @@ html:not(.dark) .app-sidebar {
   color: var(--text-muted);
 }
 
+/* Foco por teclado na celula com texto (o tooltip customizado abre no focus) */
+#tabelaOrdens tbody td[data-coluna="observacao"][data-tooltip-texto]:focus-visible {
+  outline: 1px dashed var(--primary);
+  outline-offset: -2px;
+}
+
+/* ==========================================================================
+   TOOLTIP PREMIUM - LEVEL 3 DO DESIGN.MD (assets/DESIGN.md)
+   Utilizado pela coluna OBSERVACAO (so quando o texto esta truncado).
+   E um singleton apensado ao <body> com position: fixed, porque o td tem
+   overflow: hidden e a tabela tem overflow-x: auto - qualquer pseudo-elemento
+   dentro da celula seria recortado.
+   ========================================================================== */
+.ui-tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  max-width: 420px;
+  padding: 8px 12px;
+  background-color: var(--container);
+  border: 1px solid var(--outline-light);
+  /* Level 3: borda superior de destaque indicando "estado de maquina ativo" */
+  border-top: 1px solid rgba(249, 115, 22, 0.4);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: break-word;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(2px);
+  transition: opacity 150ms ease, transform 150ms ease, visibility 150ms;
+}
+
+.ui-tooltip.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.ui-tooltip.is-above {
+  transform: translateY(-2px);
+}
+
+.ui-tooltip.is-above.is-visible {
+  transform: translateY(0);
+}
+
+/* Seta apontando para a celula (posicao horizontal definida por --arrow-x) */
+.ui-tooltip::after {
+  content: '';
+  position: absolute;
+  left: var(--arrow-x, 50%);
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  background-color: var(--container);
+  border: 1px solid var(--outline-light);
+  transform: rotate(45deg);
+}
+
+.ui-tooltip.is-below::after {
+  top: -5px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.ui-tooltip.is-above::after {
+  bottom: -5px;
+  border-left: none;
+  border-top: none;
+}
+
+/* Light mode */
+html:not(.dark) .ui-tooltip {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+  border-top-color: rgba(249, 115, 22, 0.55);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+  color: #0f172a;
+}
+
+html:not(.dark) .ui-tooltip::after {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-tooltip,
+  .ui-tooltip.is-visible,
+  .ui-tooltip.is-above,
+  .ui-tooltip.is-above.is-visible {
+    transition: none;
+    transform: none;
+  }
+}
+
 /* Table Pagination Footer */
 .table-footer {
   padding: 12px 18px;
