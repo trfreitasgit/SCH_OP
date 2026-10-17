@@ -100,6 +100,18 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (session) window.sbSyncAuthCookie(session);
 });
 
+// O SAP exporta quantidades no formato pt-BR, usando o ponto como separador de
+// milhar ("1.000"). Como parseInt("1.000", 10) === 1 (a conversao para no primeiro
+// caractere nao-digito), removemos os pontos antes de converter. A parte decimal
+// (apos a virgula) e descartada, pois total_pecas e um contador inteiro.
+function parseQuantidade(valor) {
+    if (valor === null || valor === undefined) return NaN;
+    if (typeof valor === 'number') return Math.trunc(valor);
+    var texto = String(valor).trim();
+    if (texto === '') return NaN;
+    return parseInt(texto.replace(/\./g, '').split(',')[0], 10);
+}
+
 // Estado dos filtros avançados
 var filtrosAvancados = {
     prioridades: {
@@ -550,7 +562,7 @@ document.getElementById('btnGerarPrevia').addEventListener('click', function() {
 
         previaOrdens.push({
             numero_op: numOp,
-            total_pecas: parseInt(qtdPecas, 10) || 0,
+            total_pecas: parseQuantidade(qtdPecas) || 0,
             material: mat,
             setor: document.getElementById('setorLote').value,
             situacao: document.getElementById('situacaoLote').value,
@@ -845,7 +857,7 @@ async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
     var novoValor = editor.value;
 
     if (coluna === 'total_pecas') {
-        var num = parseInt(novoValor, 10);
+        var num = parseQuantidade(novoValor);
         if (isNaN(num) || num <= 0) {
             alert('Erro: O total de peças deve ser um número maior que zero.');
             editor.focus();
@@ -1066,7 +1078,7 @@ async function aplicarEdicaoEmMassa() {
     var valor = valorEl ? valorEl.value : '';
 
     if (campo === 'total_pecas') {
-        var n = parseInt(valor, 10);
+        var n = parseQuantidade(valor);
         if (isNaN(n) || n <= 0) {
             alert('Erro: O total de peças deve ser um número maior que zero.');
             return;

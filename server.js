@@ -101,6 +101,18 @@ function buildOrderQuery(query, sort, order, defaultOrders) {
     }, query);
 }
 
+// O SAP exporta quantidades no formato pt-BR, usando o ponto como separador de
+// milhar ("1.000"). Como parseInt("1.000", 10) === 1 (a conversao para no primeiro
+// caractere nao-digito), removemos os pontos antes de converter. A parte decimal
+// (apos a virgula) e descartada, pois total_pecas e um contador inteiro.
+function parseQuantidade(valor) {
+    if (valor === null || valor === undefined) return NaN;
+    if (typeof valor === 'number') return Math.trunc(valor);
+    var texto = String(valor).trim();
+    if (texto === '') return NaN;
+    return parseInt(texto.replace(/\./g, '').split(',')[0], 10);
+}
+
 app.get('/ordens', requireAuth, async function (req, res) {
     var sort = req.query.sort;
     var order = req.query.order;
@@ -146,7 +158,7 @@ app.get('/ordens/pendentes', requireAuth, async function (req, res) {
 app.post('/ordens', requireAuth, async function (req, res) {
     var numero_op = req.body.numero_op ? String(req.body.numero_op).trim() : null;
     var setor = req.body.setor ? String(req.body.setor).trim() : null;
-    var total_pecas = parseInt(req.body.total_pecas, 10);
+    var total_pecas = parseQuantidade(req.body.total_pecas);
     var material = req.body.material !== undefined && req.body.material !== null ? String(req.body.material).trim() : null;
     var data_abertura = req.body.data_abertura ? String(req.body.data_abertura).trim() : null;
     var dia_analise = req.body.dia_analise ? String(req.body.dia_analise).trim() : null;
@@ -228,7 +240,7 @@ app.put('/ordens/:id', requireAuth, async function (req, res) {
     }
 
     if (req.body.total_pecas !== undefined) {
-        var total = parseInt(req.body.total_pecas, 10);
+        var total = parseQuantidade(req.body.total_pecas);
         if (isNaN(total) || total <= 0) {
             return res.status(400).json({ erro: 'O total de peças deve ser um número maior que zero.' });
         }
