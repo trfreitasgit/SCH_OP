@@ -177,6 +177,11 @@
                         <span class="material-symbols-outlined">content_copy</span>
                         <span>Copiar OPs para o SAP</span>
                     </button>
+                    <!-- EXPORTACAO XLSX: envia os IDs de TODA a lista filtrada (ignora paginacao) -->
+                    <button id="btnExportarExcel" class="btn-secondary-action" type="button" title="Exportar as ordens filtradas para uma planilha Excel (.xlsx)">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
+                        <span id="btnExportarExcelLabel">Exportar para Excel</span>
+                    </button>
                     <!-- Toggle Filter Drawer -->
                     <button id="btn-toggle-filters" class="btn-secondary-action" type="button" title="Abrir/Fechar Filtros Laterais">
                         <span class="material-symbols-outlined" style="font-size: 18px;">filter_alt</span>
@@ -293,15 +298,17 @@
                                     <input type="checkbox" id="checkTodas" title="Selecionar todas as ordens" />
                                 </th>
                                 <!-- MANDATORY data-campo ATTRIBUTES FOR SORTING IN ordens.js -->
-                                <th data-campo="numero_op">OP</th>
-                                <th data-campo="total_pecas" style="text-align: right;">Total de peças</th>
-                                <th data-campo="data_abertura">Data de abertura</th>
-                                <th data-campo="material">Material</th>
-                                <th data-campo="situacao">Situação</th>
-                                <th data-campo="observacao">Observação</th>
-                                <th data-campo="setor">Setor</th>
-                                <th data-campo="prioridade">Prioridade</th>
-                                <th data-campo="dia_analise">Dia analise</th>
+                                <!-- Rotulos abreviados para reduzir o min-content dos cabecalhos (responsividade).
+                                     aria-label + title preservam o nome completo para acessibilidade/hover. -->
+                                <th data-campo="numero_op" title="Número da OP">OP</th>
+                                <th data-campo="total_pecas" style="text-align: right;" title="Total de peças" aria-label="Total de peças">Peças</th>
+                                <th data-campo="data_abertura" title="Data de abertura" aria-label="Data de abertura">Abertura</th>
+                                <th data-campo="material" title="Material">Material</th>
+                                <th data-campo="situacao" title="Situação">Situação</th>
+                                <th data-campo="observacao" title="Observação" aria-label="Observação">Obs.</th>
+                                <th data-campo="setor" title="Setor">Setor</th>
+                                <th data-campo="prioridade" title="Prioridade" aria-label="Prioridade">Prior.</th>
+                                <th data-campo="dia_analise" title="Dia de análise" aria-label="Dia de análise">Dia análise</th>
                                 <th class="th-acoes">Ações</th>
                             </tr>
                         </thead>
@@ -918,16 +925,12 @@
         //    atual e era descartado em todo re-render (setor, ordenacao, paginacao).
         //    Agora entra no pipeline de filtros, cumulativo com setor/prioridade/status/data.
 
-        // 6. Atualização do contador de registros no rodapé
-        const tbody = document.querySelector('#tabelaOrdens tbody');
-        if (tbody) {
-            const observer = new MutationObserver(() => {
-                const rows = tbody.querySelectorAll('tr');
-                const counter = document.getElementById('table-records-counter');
-                if (counter) counter.innerText = `Exibindo ${rows.length} ordens de produção`;
-            });
-            observer.observe(tbody, { childList: true });
-        }
+        // 6. Contador de registros do rodape: REMOVIDO.
+        //    O bloco antigo (MutationObserver) escrevia em #table-records-counter, elemento
+        //    que nao existe no HTML, e dependia de uma variavel 'tbody' que ficou indefinida
+        //    depois da limpeza, gerando "ReferenceError: tbody is not defined" no console.
+        //    O contador real e o rodape "Mostrando X-Y de Z Ordens", atualizado por
+        //    atualizarControlesPaginacao() em ordens.js, que ja acompanha os filtros.
     </script>
 
     <!-- Supabase Client -->

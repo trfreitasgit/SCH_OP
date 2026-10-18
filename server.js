@@ -5,6 +5,8 @@ var { createClient } = require('@supabase/supabase-js');
 var cors = require('cors');
 var cookieParser = require('cookie-parser');
 const path = require('path');
+var fs = require('fs');
+var { exec } = require('child_process');
 
 
 app.use(express.json());
@@ -380,6 +382,74 @@ app.delete('/ordens', requireAuth, async function (req, res) {
         return res.status(500).json({ erro: error.message });
     }
     res.json({ mensagem: 'Ordens removidas com sucesso', removidas: data.length });
+});
+
+// ==========================================================================
+// EXPORTACAO XLSX
+// --------------------------------------------------------------------------
+// Dispara: python scripts/export_excel.py --ids "1,2,3"
+// Convencao: o script deve imprimir na ULTIMA linha do stdout o caminho do
+// arquivo .xlsx gerado; o servidor baixa esse arquivo como anexo e o remove.
+// ==========================================================================
+var SCRIPT_EXPORT = path.join(__dirname, 'scripts', 'export_excel.py');
+
+function validarIdsExport(ids) {
+    if (!Array.isArray(ids) || ids.length === 0) return null;
+    var limpos = [];
+    for (var i = 0; i < ids.length; i++) {
+        var bruto = String(ids[i] === undefined || ids[i] === null ? '' : ids[i]).trim();
+        // Somente inteiros positivos: elimina qualquer possibilidade de injecao
+        // de comandos no shell (o valor vai para uma chamada exec).
+        if (!/^\d+$/.test(bruto)) return null;
+        limpos.push(bruto);
+    }
+    return limpos;
+}
+
+app.post('/ordens/export', requireAuth, function (req, res) {
+    var ids = validarIdsExport(req.body && req.body.ids);
+
+    if (!ids) {
+        return res.status(400).json({ erro: 'Lista de IDs inválida. Envie "ids" como array de inteiros positivos.' });
+    }
+
+    if (!fs.existsSync(SCRIPT_EXPORT)) {
+        return res.status(500).json({ erro: 'Script de exportação não encontrado (scripts/export_excel.py).' });
+    }
+
+    var comando = 'python "' + SCRIPT_EXPORT + '" --ids "' + ids.join(',') + '"';
+
+    exec(comando, { timeout: 60000, maxBuffer: 10 * 1024 * 1024 }, function (erro, stdout, stderr) {
+        if (erro) {
+            console.error('Erro no script de exportação:', (stderr || erro.message || '').toString().trim());
+            return res.status(500).json({
+                erro: 'Falha ao executar o script de exportação.',
+                detalhe: (stderr || erro.message || '').toString().trim()
+            });
+        }
+
+        var linhas = String(stdout || '').split(/\r?\n/)
+            .map(function (l) { return l.trim(); })
+            .filter(function (l) { return l !== ''; });
+        var caminho = linhas.length ? linhas[linhas.length - 1] : null;
+
+        if (!caminho || !fs.existsSync(caminho)) {
+            return res.status(500).json({
+                erro: 'O script de exportação não retornou um arquivo válido.',
+                detalhe: caminho || 'stdout vazio'
+            });
+        }
+
+        var nomeArquivo = 'ordens_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + '.xlsx';
+
+        res.download(caminho, nomeArquivo, function (err) {
+            // Remove o arquivo temporario gerado pelo script (sucesso ou nao).
+            fs.unlink(caminho, function () { /* ignora erro de limpeza */ });
+            if (err && !res.headersSent) {
+                console.error('Erro ao enviar o arquivo de exportação:', err.message);
+            }
+        });
+    });
 });
 
 app.use(express.static(__dirname));

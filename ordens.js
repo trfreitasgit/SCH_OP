@@ -524,6 +524,68 @@ document.getElementById('btnCopiar').addEventListener('click', function() {
     });
 });
 
+// ==========================================================================
+// EXPORTAR PARA EXCEL: envia TODOS os IDs da lista filtrada (ignora a paginacao)
+// O backend dispara o script Python e devolve o .xlsx como download.
+// ==========================================================================
+var btnExportarExcel = document.getElementById('btnExportarExcel');
+
+if (btnExportarExcel) {
+    btnExportarExcel.addEventListener('click', async function () {
+        var ids = listaFiltrada
+            .map(function (ordem) { return ordem.id; })
+            .filter(function (id) { return id !== undefined && id !== null; });
+
+        if (ids.length === 0) {
+            alert('Nenhuma ordem filtrada para exportar.');
+            return;
+        }
+
+        var label = document.getElementById('btnExportarExcelLabel');
+        var textoOriginal = label ? label.textContent : null;
+
+        btnExportarExcel.disabled = true;
+        btnExportarExcel.classList.add('opacity-75', 'cursor-wait');
+        if (label) label.textContent = 'Carregando...';
+
+        try {
+            var resposta = await authFetch('/ordens/export', {
+                method: 'POST',
+                body: JSON.stringify({ ids: ids })
+            });
+
+            if (!resposta.ok) {
+                var detalhe = '';
+                try { detalhe = (await resposta.json()).erro || ''; } catch (e) { /* resposta sem JSON */ }
+                throw new Error(detalhe || ('Falha na exportação (HTTP ' + resposta.status + ').'));
+            }
+
+            // Nome do arquivo vem do Content-Disposition do servidor.
+            var disposicao = resposta.headers.get('Content-Disposition') || '';
+            var casamento = disposicao.match(/filename="?([^";]+)"?/i);
+
+            var blob = await resposta.blob();
+            var url = URL.createObjectURL(blob);
+            var link = document.createElement('a');
+            link.href = url;
+            link.download = casamento ? casamento[1] : 'ordens_export.xlsx';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            mostrarToast('Exportação concluída', ids.length + ' ordens exportadas para Excel.');
+        } catch (erro) {
+            console.error('Erro ao exportar para Excel:', erro);
+            alert('Erro ao exportar para Excel: ' + erro.message);
+        } finally {
+            btnExportarExcel.disabled = false;
+            btnExportarExcel.classList.remove('opacity-75', 'cursor-wait');
+            if (label && textoOriginal !== null) label.textContent = textoOriginal;
+        }
+    });
+}
+
 // GERAÇÃO DE PRÉVIA EM MASSA
 document.getElementById('btnGerarPrevia').addEventListener('click', function() {
     var ops = document.getElementById('listaOPs').value.split('\n').filter(function(linha) {

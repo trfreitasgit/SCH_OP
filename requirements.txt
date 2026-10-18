@@ -1,0 +1,7 @@
+# Dependências Python do gerador de planilhas (scripts/export_excel.py).
+# O Render sobe como runtime Node, então o build command precisa instalar isso:
+#   pip install --user -r requirements.txt && npm install
+supabase==2.33.0
+pandas==2.3.3
+openpyxl==3.1.5
+python-dotenv==1.2.3
