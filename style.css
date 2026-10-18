@@ -1117,7 +1117,9 @@ html:not(.dark) .app-sidebar {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 12px 16px;
+  /* Padding horizontal 12px (era 16px): compressao calculada para caber em 1440px.
+     Diagnostico: cada coluna economiza 8px = 88px no total das 11 colunas. */
+  padding: 12px;
   border-bottom: 1px solid var(--outline);
   white-space: nowrap;
   user-select: none;
@@ -1183,7 +1185,8 @@ html:not(.dark) .app-sidebar {
 }
 
 #tabelaOrdens tbody td {
-  padding: 12px 16px;
+  /* Padding horizontal 12px (era 16px) - ver diagnostico em ordens.html/style.css */
+  padding: 12px;
   border-bottom: 1px solid var(--outline-light);
   font-size: 13px;
   vertical-align: middle;
@@ -1259,7 +1262,9 @@ html:not(.dark) .app-sidebar {
 #tabelaOrdens tbody td[data-coluna="observacao"] {
   color: var(--text-muted);
   font-size: 12px;
-  max-width: 220px;
+  /* 220px -> 140px: maior alavanca isolada do diagnostico (liberou 80px).
+     O truncamento com reticencias e o tooltip premium continuam ativos. */
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1285,6 +1290,63 @@ html:not(.dark) .app-sidebar {
 #tabelaOrdens tbody td[data-coluna="observacao"][data-tooltip-texto]:focus-visible {
   outline: 1px dashed var(--primary);
   outline-offset: -2px;
+}
+
+/* ==========================================================================
+   RESPONSIVIDADE DA TABELA - COLUNA FIXA (STICKY) + ROLAGEM ELEGANTE
+   A primeira coluna (checkbox) fica "pinned" na esquerda durante a rolagem
+   horizontal. O background e obrigatorio: sem ele o conteudo rolaria por
+   baixo da celula fixa. O fallback de z-index mantem o cabecalho por cima.
+   ========================================================================== */
+#tabelaOrdens .th-check,
+#tabelaOrdens .td-check {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background-color: var(--bg-container-low);
+  /* Fio condutor na borda direita: reforca a leitura de "coluna fixada" */
+  box-shadow: 1px 0 0 0 var(--outline-light);
+}
+
+#tabelaOrdens thead .th-check {
+  z-index: 3;
+  background-color: var(--bg-canvas);
+}
+
+/* Linhas zebradas: replica exatamente o rgba(30,34,43,.4) usado em tbody tr:nth-child(even) */
+#tabelaOrdens tbody tr:nth-child(even) .td-check {
+  background-image: linear-gradient(rgba(30, 34, 43, 0.4), rgba(30, 34, 43, 0.4));
+}
+
+#tabelaOrdens tbody tr:hover .td-check {
+  background-color: var(--bg-container-high);
+  background-image: none;
+}
+
+/* Barra de rolagem horizontal: fina, arredondada e casada com o tema */
+.table-responsive-container {
+  scrollbar-width: thin;
+  scrollbar-color: var(--container-highest) transparent;
+}
+
+.table-responsive-container::-webkit-scrollbar {
+  height: 10px;
+}
+
+.table-responsive-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.table-responsive-container::-webkit-scrollbar-thumb {
+  background-color: var(--container-highest);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.table-responsive-container::-webkit-scrollbar-thumb:hover {
+  background-color: var(--primary);
+  background-clip: padding-box;
 }
 
 /* ==========================================================================
