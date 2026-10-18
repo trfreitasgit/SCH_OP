@@ -82,6 +82,17 @@
   --status-slate-bg: rgba(148, 163, 184, 0.14);
   --status-slate-border: rgba(148, 163, 184, 0.3);
 
+  /* Turnos da coluna TURNO (T1 verde / T2 azul / T3 roxo) */
+  --turno-t1: #10b981;
+  --turno-t1-bg: rgba(16, 185, 129, 0.14);
+  --turno-t1-border: rgba(16, 185, 129, 0.3);
+  --turno-t2: #38bdf8;
+  --turno-t2-bg: rgba(56, 189, 248, 0.14);
+  --turno-t2-border: rgba(56, 189, 248, 0.3);
+  --turno-t3: #a78bfa;
+  --turno-t3-bg: rgba(167, 139, 250, 0.14);
+  --turno-t3-border: rgba(167, 139, 250, 0.3);
+
   /* Legacy aliases for backward compatibility */
   --bg-canvas: var(--canvas);
   --bg-surface: var(--surface);
@@ -238,6 +249,17 @@ html:not(.dark) {
   --status-slate: #64748b;
   --status-slate-bg: #f1f5f9;
   --status-slate-border: #cbd5e1;
+
+  /* Turnos da coluna TURNO (T1 verde / T2 azul / T3 roxo) */
+  --turno-t1: #059669;
+  --turno-t1-bg: #ecfdf5;
+  --turno-t1-border: #a7f3d0;
+  --turno-t2: #0284c7;
+  --turno-t2-bg: #f0f9ff;
+  --turno-t2-border: #bae6fd;
+  --turno-t3: #7c3aed;
+  --turno-t3-bg: #f5f3ff;
+  --turno-t3-border: #ddd6fe;
 
   /* Legacy aliases */
   --bg-canvas: var(--canvas);
@@ -1117,9 +1139,10 @@ html:not(.dark) .app-sidebar {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  /* Padding horizontal 12px (era 16px): compressao calculada para caber em 1440px.
-     Diagnostico: cada coluna economiza 8px = 88px no total das 11 colunas. */
-  padding: 12px;
+  /* Padding horizontal 10px: compressao calculada para as 12 colunas caberem em
+     1440px (sidebar aberta) sem reativar a rolagem horizontal.
+     16px -> 12px liberou 88px, 12px -> 10px liberou mais 48px para a coluna TURNO. */
+  padding: 12px 10px;
   border-bottom: 1px solid var(--outline);
   white-space: nowrap;
   user-select: none;
@@ -1185,8 +1208,8 @@ html:not(.dark) .app-sidebar {
 }
 
 #tabelaOrdens tbody td {
-  /* Padding horizontal 12px (era 16px) - ver diagnostico em ordens.html/style.css */
-  padding: 12px;
+  /* Padding horizontal 10px - mesma compressao do thead para as 12 colunas */
+  padding: 12px 10px;
   border-bottom: 1px solid var(--outline-light);
   font-size: 13px;
   vertical-align: middle;
@@ -1262,9 +1285,9 @@ html:not(.dark) .app-sidebar {
 #tabelaOrdens tbody td[data-coluna="observacao"] {
   color: var(--text-muted);
   font-size: 12px;
-  /* 220px -> 140px: maior alavanca isolada do diagnostico (liberou 80px).
-     O truncamento com reticencias e o tooltip premium continuam ativos. */
-  max-width: 140px;
+  /* Teto do truncamento: 220 -> 140 (responsividade) -> 128 (abrir espaco para a
+     coluna TURNO). O texto completo continua no tooltip premium do hover. */
+  max-width: 128px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1616,6 +1639,77 @@ html:not(.dark) .priority-branca {
   background-color: var(--status-slate-bg);
   color: var(--status-slate);
   border-color: var(--status-slate-border);
+}
+
+/* ==========================================================================
+   TURNO BADGES - COLUNA TURNO (T1 / T2 / T3)
+   Mesma linguagem visual dos badges de Situacao e Prioridade (pill + dot),
+   com rotulo curto de 2 caracteres. As cores vem dos tokens --turno-*, que ja
+   mudam entre tema escuro e claro, entao nao precisa de override por tema.
+   ========================================================================== */
+.turno-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.turno-badge::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* T1 - Verde (05:20 as 13:39) */
+.turno-t1 {
+  background-color: var(--turno-t1-bg);
+  color: var(--turno-t1);
+  border-color: var(--turno-t1-border);
+}
+
+.turno-t1::before {
+  background-color: var(--turno-t1);
+  box-shadow: 0 0 6px var(--turno-t1);
+}
+
+/* T2 - Azul (13:40 as 21:59) */
+.turno-t2 {
+  background-color: var(--turno-t2-bg);
+  color: var(--turno-t2);
+  border-color: var(--turno-t2-border);
+}
+
+.turno-t2::before {
+  background-color: var(--turno-t2);
+  box-shadow: 0 0 6px var(--turno-t2);
+}
+
+/* T3 - Roxo (22:00 as 05:19) */
+.turno-t3 {
+  background-color: var(--turno-t3-bg);
+  color: var(--turno-t3);
+  border-color: var(--turno-t3-border);
+}
+
+.turno-t3::before {
+  background-color: var(--turno-t3);
+  box-shadow: 0 0 6px var(--turno-t3);
+}
+
+/* Sem pagamento registrado (dia_analise nulo) */
+.turno-sem {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-subtle);
 }
 
 /* ==========================================================================

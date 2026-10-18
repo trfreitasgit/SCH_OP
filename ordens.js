@@ -147,30 +147,118 @@ function formatarData(dataISO) {
     return dia + '/' + mes + '/' + ano;
 }
 
-function formatarDiaAnalise(data) {
-    if (data) {
-        return formatarData(data);
-    } else {
-        return '-';
+// ==========================================================================
+// FUSO DA FABRICA - America/Sao_Paulo
+// dia_analise passou a ser timestamptz (instante exato do pagamento), entao a
+// data e o horario precisam ser lidos no fuso da fabrica e nao no fuso do
+// navegador: um pagamento as 22h de 16/10 chega do banco como 01h UTC de 17/10
+// e apareceria como 17/10 para quem estivesse em UTC. Mesma regra do backend.
+// ==========================================================================
+var TZ_FABRICA = 'America/Sao_Paulo';
+var _fmtHoraFabrica = null;
+var _fmtDataFabrica = null;
+
+// { hora: 0-23, minuto: 0-59 } de um timestamp no fuso da fabrica.
+// Data pura (AAAA-MM-DD) vale como meia-noite, igual ao normalizarDiaAnalise do backend.
+function obterHoraMinutoFabrica(dataISO) {
+    if (!dataISO) return null;
+    var texto = String(dataISO).trim();
+    if (!texto) return null;
+    if (texto.indexOf('T') === -1) {
+        // Data pura (AAAA-MM-DD) vale como meia-noite da fabrica; qualquer outro texto e invalido.
+        return /^\d{4}-\d{2}-\d{2}$/.test(texto) ? { hora: 0, minuto: 0 } : null;
     }
+    var data = new Date(texto);
+    if (isNaN(data.getTime())) return null;
+    if (!_fmtHoraFabrica) {
+        _fmtHoraFabrica = new Intl.DateTimeFormat('en-GB', {
+            timeZone: TZ_FABRICA, hour: '2-digit', minute: '2-digit', hour12: false
+        });
+    }
+    var partes = _fmtHoraFabrica.formatToParts(data);
+    var hora = 0;
+    var minuto = 0;
+    for (var i = 0; i < partes.length; i++) {
+        if (partes[i].type === 'hour') hora = parseInt(partes[i].value, 10) % 24; // '24' do en-GB vira 0
+        if (partes[i].type === 'minute') minuto = parseInt(partes[i].value, 10);
+    }
+    return { hora: hora, minuto: minuto };
+}
+
+// { ano, mes, dia } no fuso da fabrica (data pura e mantida literal, sem conversao).
+function obterDataFabrica(dataISO) {
+    if (!dataISO) return null;
+    var texto = String(dataISO).trim();
+    if (!texto) return null;
+    if (texto.indexOf('T') === -1) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(texto)) return null;
+        var cru = texto.split('-');
+        return { ano: cru[0], mes: cru[1], dia: cru[2] };
+    }
+    var data = new Date(texto);
+    if (isNaN(data.getTime())) return null;
+    if (!_fmtDataFabrica) {
+        _fmtDataFabrica = new Intl.DateTimeFormat('en-CA', {
+            timeZone: TZ_FABRICA, year: 'numeric', month: '2-digit', day: '2-digit'
+        });
+    }
+    var partes = _fmtDataFabrica.formatToParts(data);
+    var campos = {};
+    for (var i = 0; i < partes.length; i++) campos[partes[i].type] = partes[i].value;
+    return { ano: campos.year, mes: campos.month, dia: campos.day };
+}
+
+// Coluna DATA DE ANALISE: sempre DD/MM/AAAA, na data local da fabrica.
+function formatarDiaAnalise(data) {
+    var d = obterDataFabrica(data);
+    if (!d) return '-';
+    return d.dia + '/' + d.mes + '/' + d.ano;
+}
+
+// ==========================================================================
+// TURNO DO PAGAMENTO (coluna TURNO)
+//   T1 (verde): 05:20 as 13:39
+//   T2 (azul):  13:40 as 21:59
+//   T3 (roxo):  22:00 as 05:19 (cruza a meia-noite)
+// ==========================================================================
+var TURNO_T1_INICIO = 5 * 60 + 20;   // 05:20
+var TURNO_T2_INICIO = 13 * 60 + 40;  // 13:40
+var TURNO_T3_INICIO = 22 * 60;       // 22:00
+
+function obterTurno(diaAnalise) {
+    var hm = obterHoraMinutoFabrica(diaAnalise);
+    if (!hm) return null;
+    var minutos = hm.hora * 60 + hm.minuto;
+    if (minutos >= TURNO_T1_INICIO && minutos < TURNO_T2_INICIO) return 'T1';
+    if (minutos >= TURNO_T2_INICIO && minutos < TURNO_T3_INICIO) return 'T2';
+    return 'T3';
+}
+
+function getTurnoBadge(turno) {
+    if (!turno) {
+        return '<span class="turno-sem" title="Sem pagamento registrado">-</span>';
+    }
+    var nomes = {
+        T1: 'Turno 1 - 05:20 as 13:39',
+        T2: 'Turno 2 - 13:40 as 21:59',
+        T3: 'Turno 3 - 22:00 as 05:19'
+    };
+    return '<span class="turno-badge turno-' + turno.toLowerCase() + '" title="' + nomes[turno] + '" aria-label="' + nomes[turno] + '">' + turno + '</span>';
+}
+
+// A coluna Turno e derivada de dia_analise: nao leva data-coluna para nao virar
+// celula editavel (o guard de iniciarEdicaoCelula ignora td sem data-coluna).
+function celulaTurno(diaAnalise) {
+    return '<td class="td-turno">' + getTurnoBadge(obterTurno(diaAnalise)) + '</td>';
 }
 
 function calcularDiferencaDias(dataAberturaISO, diaAnaliseISO) {
-    if (!dataAberturaISO || !diaAnaliseISO) return null;
-    var parteA = String(dataAberturaISO).substring(0, 10).split('-');
-    var parteB = String(diaAnaliseISO).substring(0, 10).split('-');
-    if (parteA.length < 3 || parteB.length < 3) return null;
+    var parteA = obterDataFabrica(dataAberturaISO);
+    var parteB = obterDataFabrica(diaAnaliseISO);
+    if (!parteA || !parteB) return null;
 
-    var anoA = parseInt(parteA[0], 10);
-    var mesA = parseInt(parteA[1], 10) - 1;
-    var diaA = parseInt(parteA[2], 10);
-
-    var anoB = parseInt(parteB[0], 10);
-    var mesB = parseInt(parteB[1], 10) - 1;
-    var diaB = parseInt(parteB[2], 10);
-
-    var dtA = new Date(anoA, mesA, diaA);
-    var dtB = new Date(anoB, mesB, diaB);
+    var dtA = new Date(parseInt(parteA.ano, 10), parseInt(parteA.mes, 10) - 1, parseInt(parteA.dia, 10));
+    var dtB = new Date(parseInt(parteB.ano, 10), parseInt(parteB.mes, 10) - 1, parseInt(parteB.dia, 10));
 
     var diffMs = dtB - dtA;
     return Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -416,6 +504,7 @@ function renderizarTabela(lista) {
             + '<td data-coluna="setor" title="Duplo clique para editar">' + (ordem.setor || '') + '</td>'
             + '<td data-coluna="prioridade" title="Duplo clique para editar">' + getPriorityBadge(ordem.prioridade) + '</td>'
             + '<td data-coluna="dia_analise" title="Duplo clique para editar data de análise">' + formatarDiaAnalise(ordem.dia_analise) + '</td>'
+            + celulaTurno(ordem.dia_analise)
             + '<td class="td-acoes">'
             + '  <button type="button" class="btn-excluir-linha" data-id="' + ordem.id + '" data-op="' + (ordem.numero_op || '') + '" title="Excluir ordem">'
             + '    <span class="material-symbols-outlined" style="font-size: 16px;">delete</span>'
@@ -1349,7 +1438,10 @@ function passaBuscaRapida(ordem) {
         ordem.setor,
         ordem.prioridade,
         formatarDiaAnalise(ordem.dia_analise),
-        ordem.dia_analise
+        ordem.dia_analise,
+        // A coluna TURNO e visivel na tabela, entao tambem entra na busca rapida:
+        // digitar "T3" lista o turno da noite, "T1" o da manha.
+        obterTurno(ordem.dia_analise)
     ];
 
     for (var i = 0; i < partes.length; i++) {

@@ -115,6 +115,58 @@ function parseQuantidade(valor) {
     return parseInt(texto.replace(/\./g, '').split(',')[0], 10);
 }
 
+// Converte o valor recebido para timestamptz ISO. Uma data "pura" (YYYY-MM-DD) e
+// ancorada na meia-noite de Sao Paulo (-03:00), preservando a semantica de "dia
+// local" que existia antes da migracao da coluna para timestamptz. Retorna null
+// para entrada vazia e undefined para entrada invalida (o chamador responde 400).
+function normalizarDiaAnalise(valor) {
+    if (valor === undefined || valor === null) return null;
+    var texto = String(valor).trim();
+    if (texto === '') return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) return texto + 'T00:00:00-03:00';
+    if (isNaN(new Date(texto).getTime())) return undefined;
+    return texto;
+}
+
+// Timestamp atual em ISO (UTC) - instante absoluto gravado na coluna timestamptz.
+function agoraISO() {
+    return new Date().toISOString();
+}
+
+// ---------------------------------------------------------------------------
+// TURNOS - fonte da verdade no backend (horario avaliado em America/Sao_Paulo)
+//   T1: 05:20 as 13:39
+//   T2: 13:40 as 21:59
+//   T3: 22:00 as 05:19 (cruza a meia-noite)
+// ---------------------------------------------------------------------------
+var TZ_TURNO = 'America/Sao_Paulo';
+
+function minutosEmSaoPaulo(data) {
+    var partes = new Intl.DateTimeFormat('en-GB', {
+        timeZone: TZ_TURNO,
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    }).formatToParts(data);
+    var h = 0;
+    var m = 0;
+    for (var i = 0; i < partes.length; i++) {
+        if (partes[i].type === 'hour') h = parseInt(partes[i].value, 10) % 24;
+        if (partes[i].type === 'minute') m = parseInt(partes[i].value, 10);
+    }
+    return h * 60 + m;
+}
+
+function classificarTurno(data) {
+    var d = data instanceof Date ? data : new Date(data);
+    if (isNaN(d.getTime())) return null;
+
+    var min = minutosEmSaoPaulo(d);
+    if (min >= 5 * 60 + 20 && min <= 13 * 60 + 39) return 'T1'; // 05:20 - 13:39
+    if (min >= 13 * 60 + 40 && min <= 21 * 60 + 59) return 'T2'; // 13:40 - 21:59
+    return 'T3'; // 22:00 - 05:19 (inclui a virada do dia)
+}
+
 app.get('/ordens', requireAuth, async function (req, res) {
     var sort = req.query.sort;
     var order = req.query.order;
@@ -163,7 +215,10 @@ app.post('/ordens', requireAuth, async function (req, res) {
     var total_pecas = parseQuantidade(req.body.total_pecas);
     var material = req.body.material !== undefined && req.body.material !== null ? String(req.body.material).trim() : null;
     var data_abertura = req.body.data_abertura ? String(req.body.data_abertura).trim() : null;
-    var dia_analise = req.body.dia_analise ? String(req.body.dia_analise).trim() : null;
+    var dia_analise = normalizarDiaAnalise(req.body.dia_analise);
+    if (dia_analise === undefined) {
+        return res.status(400).json({ erro: 'Dia de análise inválido.' });
+    }
     var situacao = req.body.situacao ? String(req.body.situacao).trim() : 'Falta Pagar';
     var prioridade = req.body.prioridade ? String(req.body.prioridade).trim() : null;
     var observacao = req.body.observacao ? String(req.body.observacao).trim() : null;
@@ -193,7 +248,7 @@ app.post('/ordens', requireAuth, async function (req, res) {
     var peso_prioridade = prioridade && pesos[prioridade] ? pesos[prioridade] : null;
 
     if (situacao === 'Pago' && !dia_analise) {
-        dia_analise = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+        dia_analise = agoraISO();
     }
 
     var { data, error } = await supabase
@@ -293,8 +348,8 @@ app.put('/ordens/:id', requireAuth, async function (req, res) {
     }
 
     if (req.body.dia_analise !== undefined) {
-        var dataAna = req.body.dia_analise ? String(req.body.dia_analise).trim() : null;
-        if (dataAna && isNaN(new Date(dataAna).getTime())) {
+        var dataAna = normalizarDiaAnalise(req.body.dia_analise);
+        if (dataAna === undefined) {
             return res.status(400).json({ erro: 'Dia de análise inválido.' });
         }
         updateData.dia_analise = dataAna;
@@ -310,8 +365,7 @@ app.put('/ordens/:id', requireAuth, async function (req, res) {
 
         if (!diaAnaliseDefinido) {
             if (sit === 'Pago') {
-                var hojeSP = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
-                updateData.dia_analise = hojeSP;
+                updateData.dia_analise = agoraISO();
             } else {
                 updateData.dia_analise = null;
             }
