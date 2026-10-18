@@ -5,3 +5,5 @@ supabase==2.33.0
 pandas==2.3.3
 openpyxl==3.1.5
 python-dotenv==1.2.3
+# Base de fusos para o zoneinfo no Windows (o Linux do Render já traz a sua).
+tzdata==2025.3
