@@ -5,6 +5,9 @@ var listaAtual = [];
 var campoOrdenado = null;
 var ordemCrescente = true;
 var celulaEmEdicao = null;
+// Texto do filtro rapido (campo #table-search). Faz parte do pipeline de filtros:
+// e aplicado SOBRE o resultado dos filtros avancados, nunca sobre o DOM.
+var termoBuscaRapida = '';
 
 // ==========================================================================
 // SUPABASE AUTH (client-side) - token gerenciado pelo SDK, nao mais no localStorage
@@ -453,10 +456,9 @@ async function carregarOrdensPendentes(sort, order) {
         ordensCarregadas = dados;
         paginacao.paginaAtual = 1;
         paginacao.itensPorPagina = 10;
-        paginacao.totalItens = dados.length;
-        paginacao.totalPaginas = Math.ceil(paginacao.totalItens / paginacao.itensPorPagina) || 1;
-        renderizarTabelaComPaginacao(dados);
-        atualizarContadoresFiltros();
+        // Reaplica o pipeline (filtros avancados + filtro rapido) em vez de renderizar
+        // a lista crua: sem isso, ordenar por coluna descartava os filtros ativos.
+        aplicarFiltros();
     } catch (erro) {
         console.error('Erro ao carregar ordens:', erro);
     }
@@ -1237,40 +1239,94 @@ function mostrarToast(titulo, desc) {
 }
 
 // ===== FUNÇÕES DE FILTROS AVANÇADOS =====
-function aplicarFiltrosAvancados() {
+// Fonte de dados unica do pipeline: ordensCarregadas (lista completa da API).
+// Cada etapa apenas REDUZ essa base, entao os filtros sao cumulativos:
+// avançados (setor/prioridade/status/data) + filtro rapido de texto.
+function passaFiltrosAvancados(ordem) {
+    var prio = ordem.prioridade;
+    var stat = ordem.situacao;
+    var sect = ordem.setor;
+
+    // Prioridade: se tem prioridade, verifica se está na lista permitida
+    // se NÃO tem prioridade (null/undefined), verifica se __NULL__ está permitido
+    if (prio !== null && prio !== undefined) {
+        if (!filtrosAvancados.prioridades[prio]) return false;
+    } else {
+        if (!filtrosAvancados.prioridades['__NULL__']) return false;
+    }
+
+    // Status: passa se NULL/undefined OU se está na lista
+    if (stat !== null && stat !== undefined && !filtrosAvancados.status[stat]) return false;
+    // Setor: passa se NULL/undefined OU se está na lista
+    if (sect !== null && sect !== undefined && !filtrosAvancados.setores[sect]) return false;
+
+    // Filtro por data de abertura
+    if (filtrosAvancados.dataInicio || filtrosAvancados.dataFim) {
+        var dataAbertura = ordem.data_abertura ? ordem.data_abertura.substring(0, 10) : null;
+        if (!dataAbertura) return false;
+        if (filtrosAvancados.dataInicio && dataAbertura < filtrosAvancados.dataInicio) return false;
+        if (filtrosAvancados.dataFim && dataAbertura > filtrosAvancados.dataFim) return false;
+    }
+    return true;
+}
+
+// Filtro rapido (#table-search): procura o termo em TODOS os campos exibidos na
+// linha. Antes isso era feito escondendo <tr> via DOM, o que alcancava somente a
+// pagina atual e era descartado em todo re-render (setor, ordenacao, paginacao).
+function passaBuscaRapida(ordem) {
+    if (!termoBuscaRapida) return true;
+
+    var partes = [
+        ordem.numero_op,
+        ordem.total_pecas,
+        formatarData(ordem.data_abertura),
+        ordem.data_abertura,
+        ordem.material,
+        ordem.situacao,
+        ordem.observacao,
+        ordem.setor,
+        ordem.prioridade,
+        formatarDiaAnalise(ordem.dia_analise),
+        ordem.dia_analise
+    ];
+
+    for (var i = 0; i < partes.length; i++) {
+        var valor = partes[i];
+        if (valor === null || valor === undefined) continue;
+        if (String(valor).toLowerCase().indexOf(termoBuscaRapida) !== -1) return true;
+    }
+    return false;
+}
+
+// Pipeline unico: ordensCarregadas -> filtros avancados -> filtro rapido -> paginacao
+function aplicarFiltros() {
     var filtradas = ordensCarregadas.filter(function(ordem) {
-        var prio = ordem.prioridade;
-        var stat = ordem.situacao;
-        var sect = ordem.setor;
-
-        // Prioridade: se tem prioridade, verifica se está na lista permitida
-        // se NÃO tem prioridade (null/undefined), verifica se __NULL__ está permitido
-        if (prio !== null && prio !== undefined) {
-            if (!filtrosAvancados.prioridades[prio]) return false;
-        } else {
-            if (!filtrosAvancados.prioridades['__NULL__']) return false;
-        }
-
-        // Status: passa se NULL/undefined OU se está na lista
-        if (stat !== null && stat !== undefined && !filtrosAvancados.status[stat]) return false;
-        // Setor: passa se NULL/undefined OU se está na lista
-        if (sect !== null && sect !== undefined && !filtrosAvancados.setores[sect]) return false;
-
-        // Filtro por data de abertura
-        if (filtrosAvancados.dataInicio || filtrosAvancados.dataFim) {
-            var dataAbertura = ordem.data_abertura ? ordem.data_abertura.substring(0, 10) : null;
-            if (!dataAbertura) return false;
-            if (filtrosAvancados.dataInicio && dataAbertura < filtrosAvancados.dataInicio) return false;
-            if (filtrosAvancados.dataFim && dataAbertura > filtrosAvancados.dataFim) return false;
-        }
-        return true;
+        return passaFiltrosAvancados(ordem) && passaBuscaRapida(ordem);
     });
 
     paginacao.paginaAtual = 1;
+    // Definir totalItens ANTES de renderizar evita o fallback de lista fatiada
+    // (a heuristica de protecao dentro de renderizarTabelaComPaginacao).
     paginacao.totalItens = filtradas.length;
     paginacao.totalPaginas = Math.ceil(paginacao.totalItens / paginacao.itensPorPagina) || 1;
+
     renderizarTabelaComPaginacao(filtradas);
     atualizarContadoresFiltros();
+}
+
+// Mantido por compatibilidade com os pontos que ja chamavam os filtros avancados:
+// agora todos passam pelo pipeline completo, entao o filtro rapido nunca e perdido.
+function aplicarFiltrosAvancados() {
+    aplicarFiltros();
+}
+
+// Filtro rapido de texto da tabela (#table-search)
+var inputBuscaRapida = document.getElementById('table-search');
+if (inputBuscaRapida) {
+    inputBuscaRapida.addEventListener('input', function (e) {
+        termoBuscaRapida = e.target.value.toLowerCase().trim();
+        aplicarFiltros();
+    });
 }
 
 function resetarFiltrosAvancados() {
@@ -1302,11 +1358,9 @@ function resetarFiltrosAvancados() {
     if (filterDateStart) filterDateStart.value = '';
     if (filterDateEnd) filterDateEnd.value = '';
 
-    paginacao.paginaAtual = 1;
-    paginacao.totalItens = ordensCarregadas.length;
-    paginacao.totalPaginas = Math.ceil(paginacao.totalItens / paginacao.itensPorPagina) || 1;
-    renderizarTabelaComPaginacao(ordensCarregadas);
-    atualizarContadoresFiltros();
+    // Resetar os filtros avancados devolve a base completa, mas o filtro rapido
+    // do campo #table-search continua valendo: os filtros sao cumulativos.
+    aplicarFiltros();
 }
 
 function atualizarContadoresFiltros() {

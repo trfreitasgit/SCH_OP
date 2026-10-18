@@ -913,23 +913,10 @@
             });
         });
 
-        // 5. Fast in-page table search filter
-        const tableSearch = document.getElementById('table-search');
-        if (tableSearch) {
-            tableSearch.addEventListener('input', (e) => {
-                const term = e.target.value.toLowerCase().trim();
-                const rows = document.querySelectorAll('#tabelaOrdens tbody tr');
-                let countVisible = 0;
-                rows.forEach(row => {
-                    const text = row.innerText.toLowerCase();
-                    const visible = text.includes(term);
-                    row.style.display = visible ? '' : 'none';
-                    if (visible) countVisible++;
-                });
-                const counter = document.getElementById('table-records-counter');
-                if (counter) counter.innerText = `Exibindo ${countVisible} ordens filtradas`;
-            });
-        }
+        // 5. Filtro rapido da tabela: implementado em ordens.js (campo #table-search).
+        //    Antes era feito AQUI, escondendo <tr> via DOM: alcancava apenas a pagina
+        //    atual e era descartado em todo re-render (setor, ordenacao, paginacao).
+        //    Agora entra no pipeline de filtros, cumulativo com setor/prioridade/status/data.
 
         // 6. Atualização do contador de registros no rodapé
         const tbody = document.querySelector('#tabelaOrdens tbody');
