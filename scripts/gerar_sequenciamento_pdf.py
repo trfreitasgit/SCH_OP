@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Gera a Folha de Sequenciamento de Produção em PDF A4 (fluxo contínuo).
+"""Gera a Folha de Sequenciamento de Ordens em PDF A4 (fluxo contínuo).
 
 Entradas aceitas:
 
@@ -62,7 +62,7 @@ COR_FUNDO_AMARELA = '#FFF3BF'
 COR_FUNDO_BRANCA = '#FFFFFF'
 COR_TEXTO_VERMELHA = '#B42318'
 
-TITULO = 'SCHADEK — SEQUENCIAMENTO DE PRODUÇÃO'
+TITULO = 'SCHADEK — SEQUENCIAMENTO DE ORDENS'
 
 # A4 retrato, margens de 30pt (~1,06 cm).
 MARGEM_LATERAL = 30
@@ -426,7 +426,7 @@ def _decoracao_pagina(emitido_em, estilos):
 
         canvas.setFont('Helvetica', 7)
         canvas.setFillColorRGB(0.42, 0.45, 0.50)
-        canvas.drawString(MARGEM_LATERAL, 15, 'Schadek — Sequenciamento de Produção')
+        canvas.drawString(MARGEM_LATERAL, 15, 'Schadek — Sequenciamento de Ordens')
         canvas.drawRightString(largura - MARGEM_LATERAL, 15, 'Página %d' % documento.page)
         canvas.restoreState()
 
@@ -460,7 +460,7 @@ def gerar_pdf(ordens, destino, setores_selecionados=None):
         rightMargin=MARGEM_LATERAL,
         topMargin=ALTURA_FAIXA_TOPO + 12,
         bottomMargin=MARGEM_INFERIOR,
-        title='Sequenciamento de Produção',
+        title='Sequenciamento de Ordens',
         author='Schadek',
     )
     decoracao = _decoracao_pagina(emitido_em, estilos)
@@ -484,7 +484,7 @@ def _ler_stdin(stdin):
 
 def main(argv=None, diretorio=None, stdin=None):
     parser = argparse.ArgumentParser(
-        description='Gera a Folha de Sequenciamento de Produção em PDF A4.'
+        description='Gera a Folha de Sequenciamento de Ordens em PDF A4.'
     )
     parser.add_argument('--input', help='arquivo JSON de entrada (sem ele, lê o stdin)')
     parser.add_argument('--output', help='caminho do PDF gerado (padrão: temporário)')

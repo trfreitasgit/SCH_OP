@@ -1,4 +1,4 @@
-"""Testes do gerador da Folha de Sequenciamento de Produção (PDF A4).
+"""Testes do gerador da Folha de Sequenciamento de Ordens (PDF A4).
 
 Contrato:
     python scripts/gerar_sequenciamento_pdf.py                    # JSON no stdin
@@ -285,7 +285,8 @@ def test_cabecalho_geral_traz_titulo_e_data_de_emissao(tmp_path, monkeypatch):
     texto = texto_do_pdf(gerar(tmp_path, [ordem()]))
 
     assert 'SCHADEK' in texto
-    assert 'SEQUENCIAMENTO DE PRODUÇÃO' in texto
+    assert 'SEQUENCIAMENTO DE ORDENS' in texto
+    assert 'PRODUÇÃO' not in texto
     assert '16/10/2026 14:30' in texto
 
 
