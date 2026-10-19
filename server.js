@@ -7,6 +7,7 @@ var cookieParser = require('cookie-parser');
 const path = require('path');
 var fs = require('fs');
 var exportacao = require('./lib/export-ordens');
+var sequenciamento = require('./lib/sequenciamento-ordens');
 
 
 app.use(express.json());
@@ -493,6 +494,66 @@ app.post('/ordens/export', requireAuth, async function (req, res) {
         fs.unlink(saida.caminho, function () { /* ignora erro de limpeza */ });
         if (err && !res.headersSent) {
             console.error('Erro ao enviar o arquivo de exportação:', err.message);
+        }
+    });
+});
+
+// ==========================================================================
+// SEQUENCIAMENTO DE PRODUCAO EM PDF (POST /ordens/sequenciamento/pdf)
+// --------------------------------------------------------------------------
+// Mesmo desenho do /ordens/export: o servidor consulta as ordens pendentes e
+// manda as linhas prontas para o script Python pelo stdin (execFile, sem shell).
+// O script devolve o caminho do PDF na ultima linha do stdout; o servidor envia
+// o arquivo inline e o remove do disco depois.
+// ==========================================================================
+app.post('/ordens/sequenciamento/pdf', requireAuth, async function (req, res) {
+    var setores = sequenciamento.normalizarSetores(req.body && req.body.setores_selecionados);
+
+    if (setores === undefined) {
+        return res.status(400).json({ erro: '"setores_selecionados" deve ser uma lista de textos.' });
+    }
+
+    if (!fs.existsSync(sequenciamento.CAMINHO_SCRIPT)) {
+        return res.status(500).json({ erro: 'Script de sequenciamento não encontrado (scripts/gerar_sequenciamento_pdf.py).' });
+    }
+
+    var ordens;
+    try {
+        ordens = await sequenciamento.buscarOrdensPendentes(supabase, setores);
+    } catch (erroBanco) {
+        console.error('Erro ao buscar as ordens para sequenciamento:', erroBanco.message);
+        return res.status(500).json({
+            erro: 'Falha ao buscar as ordens para sequenciamento.',
+            detalhe: erroBanco.message
+        });
+    }
+
+    if (!ordens.length) {
+        return res.status(400).json({ erro: 'Nenhuma ordem pendente encontrada para os setores selecionados' });
+    }
+
+    var saida;
+    try {
+        saida = await sequenciamento.gerarPdf({ ordens: ordens, setores: setores });
+    } catch (erroScript) {
+        console.error('Erro no script de sequenciamento:', erroScript.detalhe || erroScript.message);
+        return res.status(500).json({
+            erro: 'Falha ao executar o script de sequenciamento.',
+            detalhe: erroScript.detalhe || erroScript.message
+        });
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="' + sequenciamento.nomeArquivoPdf() + '"');
+
+    res.sendFile(saida.caminho, function (err) {
+        // Remove o arquivo temporario gerado pelo script (sucesso ou nao).
+        fs.unlink(saida.caminho, function () { /* ignora erro de limpeza */ });
+        if (err) {
+            console.error('Erro ao enviar o sequenciamento:', err.message);
+            if (!res.headersSent) {
+                res.status(500).json({ erro: 'Falha ao enviar o PDF de sequenciamento.' });
+            }
         }
     });
 });
