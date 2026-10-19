@@ -234,6 +234,54 @@ function obterTurno(diaAnalise) {
     return 'T3';
 }
 
+// Hora inicial de cada turno. Ao trocar o turno de uma ordem, e essa hora que
+// vai para dia_analise (a data do pagamento e preservada).
+var INICIO_TURNO = {
+    T1: { hora: 5, minuto: 20 },
+    T2: { hora: 13, minuto: 40 },
+    T3: { hora: 22, minuto: 0 }
+};
+
+// Devolve o ISO de dia_analise com a data da fabrica preservada e a hora trocada
+// para o inicio do turno escolhido. null quando nao ha data ou o turno e invalido.
+// O deslocamento -03:00 e explicito para o resultado nao depender do fuso de quem roda.
+function diaAnaliseComTurno(diaAnalise, turno) {
+    var data = obterDataFabrica(diaAnalise);
+    if (!data) return null;
+    var inicio = INICIO_TURNO[turno];
+    if (!inicio) return null;
+    return data.ano + '-' + data.mes + '-' + data.dia +
+        'T' + String(inicio.hora).padStart(2, '0') + ':' + String(inicio.minuto).padStart(2, '0') + ':00-03:00';
+}
+
+// Troca so a DATA de dia_analise, preservando a hora do pagamento. Sem isso, o
+// input type="date" (que so carrega AAAA-MM-DD) mandaria meia-noite e o turno
+// do pagamento viraria T3 sempre que alguem corrigisse a data.
+function diaAnaliseComData(diaAnalise, novaData) {
+    var data = obterDataFabrica(novaData);
+    if (!data) return null;
+    var hm = obterHoraMinutoFabrica(diaAnalise) || { hora: 0, minuto: 0 };
+    return data.ano + '-' + data.mes + '-' + data.dia +
+        'T' + String(hm.hora).padStart(2, '0') + ':' + String(hm.minuto).padStart(2, '0') + ':00-03:00';
+}
+
+// Compara dois dia_analise pelo INSTANTE, nao so pela data. O comparador antigo
+// usava substring(0,10), entao trocar apenas o turno (mesma data, hora diferente)
+// era tratado como "nada mudou" e a edicao era descartada em silencio.
+function mesmaDataAnalise(a, b) {
+    var textoA = a === null || a === undefined ? '' : String(a).trim();
+    var textoB = b === null || b === undefined ? '' : String(b).trim();
+    if (!textoA && !textoB) return true;
+    if (!textoA || !textoB) return false;
+
+    var msA = new Date(textoA).getTime();
+    var msB = new Date(textoB).getTime();
+    if (!isNaN(msA) && !isNaN(msB)) return msA === msB;
+
+    // Entradas que o Date nao entende: compara o texto normalizado.
+    return textoA === textoB;
+}
+
 function getTurnoBadge(turno) {
     if (!turno) {
         return '<span class="turno-sem" title="Sem pagamento registrado">-</span>';
@@ -246,10 +294,12 @@ function getTurnoBadge(turno) {
     return '<span class="turno-badge turno-' + turno.toLowerCase() + '" title="' + nomes[turno] + '" aria-label="' + nomes[turno] + '">' + turno + '</span>';
 }
 
-// A coluna Turno e derivada de dia_analise: nao leva data-coluna para nao virar
-// celula editavel (o guard de iniciarEdicaoCelula ignora td sem data-coluna).
+// A coluna Turno e derivada de dia_analise: a celula carrega data-coluna="turno"
+// para o duplo clique abrir o seletor de turno (ver iniciarEdicaoCelula).
 function celulaTurno(diaAnalise) {
-    return '<td class="td-turno">' + getTurnoBadge(obterTurno(diaAnalise)) + '</td>';
+    var turno = obterTurno(diaAnalise);
+    var dica = diaAnalise ? 'Duplo clique para editar o turno' : 'Sem pagamento registrado';
+    return '<td class="td-turno" data-coluna="turno" title="' + dica + '">' + getTurnoBadge(turno) + '</td>';
 }
 
 function calcularDiferencaDias(dataAberturaISO, diaAnaliseISO) {
@@ -503,7 +553,7 @@ function renderizarTabela(lista) {
             + celulaObservacao(ordem.observacao)
             + '<td data-coluna="setor" title="Duplo clique para editar">' + (ordem.setor || '') + '</td>'
             + '<td data-coluna="prioridade" title="Duplo clique para editar">' + getPriorityBadge(ordem.prioridade) + '</td>'
-            + '<td data-coluna="dia_analise" title="Duplo clique para editar data de análise">' + formatarDiaAnalise(ordem.dia_analise) + '</td>'
+            + '<td data-coluna="dia_analise" title="Duplo clique para editar a data (a hora do pagamento e mantida)">' + formatarDiaAnalise(ordem.dia_analise) + '</td>'
             + celulaTurno(ordem.dia_analise)
             + '<td class="td-acoes">'
             + '  <button type="button" class="btn-excluir-linha" data-id="' + ordem.id + '" data-op="' + (ordem.numero_op || '') + '" title="Excluir ordem">'
@@ -721,6 +771,8 @@ document.getElementById('btnGerarPrevia').addEventListener('click', function() {
             situacao: document.getElementById('situacaoLote').value,
             prioridade: prioridadeEscolhida,
             data_abertura: document.getElementById('dataAberturaLote').value || null,
+            // No cadastro em lote a ordem e nova: a data informada vira a meia-noite
+            // da fabrica (o backend faz o mesmo com AAAA-MM-DD).
             dia_analise: document.getElementById('diaAnaliseLote').value || null
         });
     });
@@ -915,14 +967,34 @@ function iniciarEdicaoCelula(td) {
     var ordem = ordensCarregadas.find(function(o) { return String(o.id) === String(id); });
     if (!ordem) return;
 
+    // O turno e derivado de dia_analise: sem pagamento registrado nao ha turno
+    // para editar, e criar um timestamp aqui faria a ordem contar como paga nos KPIs.
+    if (coluna === 'turno' && !ordem.dia_analise) {
+        mostrarToast('Marque a ordem como Paga para registrar o turno.');
+        return;
+    }
+
     celulaEmEdicao = td;
     td.dataset.originalHtml = td.innerHTML;
 
-    var valorAtual = ordem[coluna];
+    // A coluna Turno nao existe no registro: o valor de origem e dia_analise,
+    // que e o que o seletor precisa para marcar o turno atual e para calcular
+    // a nova hora ao salvar.
+    var valorAtual = coluna === 'turno' ? ordem.dia_analise : ordem[coluna];
     if (valorAtual === null || valorAtual === undefined) valorAtual = '';
 
     var editor;
-    if (coluna === 'situacao') {
+    if (coluna === 'turno') {
+        editor = document.createElement('select');
+        editor.className = 'cell-editor-select';
+        ['T1', 'T2', 'T3'].forEach(function(val) {
+            var opt = document.createElement('option');
+            opt.value = val;
+            opt.textContent = val + ' (' + String(INICIO_TURNO[val].hora).padStart(2, '0') + ':' + String(INICIO_TURNO[val].minuto).padStart(2, '0') + ')';
+            if (val === obterTurno(valorAtual)) opt.selected = true;
+            editor.appendChild(opt);
+        });
+    } else if (coluna === 'situacao') {
         editor = document.createElement('select');
         editor.className = 'cell-editor-select';
         ['Falta Pagar', 'Pago', 'Encerrado'].forEach(function(val) {
@@ -1009,6 +1081,34 @@ function cancelarEdicao(td) {
 async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
     var novoValor = editor.value;
 
+    if (coluna === 'turno') {
+        // Mantem a data do pagamento e troca a hora para o inicio do turno escolhido.
+        var turnoEscolhido = String(novoValor || '').trim();
+        if (turnoEscolhido === obterTurno(valorOriginal)) {
+            cancelarEdicao(td);
+            return;
+        }
+        var comTurno = diaAnaliseComTurno(valorOriginal, turnoEscolhido);
+        if (!comTurno) {
+            alert('Erro: não foi possível aplicar o turno.');
+            cancelarEdicao(td);
+            return;
+        }
+        await salvarColuna(td, editor, id, 'dia_analise', comTurno);
+        return;
+    }
+
+    if (coluna === 'dia_analise') {
+        // O editor e type="date" e so carrega AAAA-MM-DD: preserva a hora do
+        // pagamento para o turno nao virar T3 a cada correcao de data.
+        var soData = novoValor ? String(novoValor).trim() : null;
+        novoValor = soData ? (diaAnaliseComData(valorOriginal, soData) || soData) : null;
+        if (mesmaDataAnalise(valorOriginal, novoValor)) {
+            cancelarEdicao(td);
+            return;
+        }
+    }
+
     if (coluna === 'total_pecas') {
         var num = parseQuantidade(novoValor);
         if (isNaN(num) || num <= 0) {
@@ -1041,14 +1141,23 @@ async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
         novoValor = novoValor ? novoValor.trim() : null;
     }
 
-    // Se o valor for idêntico ao original, apenas cancela edição
-    var valCompOriginal = valorOriginal ? String(valorOriginal).substring(0, 10) : '';
-    var valCompNovo = novoValor ? String(novoValor).substring(0, 10) : '';
-    if (valCompOriginal === valCompNovo) {
+    // Se o valor for idêntico ao original, apenas cancela edição.
+    // dia_analise compara o INSTANTE (ver mesmaDataAnalise): comparar so os 10
+    // primeiros caracteres descartava em silencio a troca de turno no mesmo dia.
+    var igual = coluna === 'dia_analise'
+        ? mesmaDataAnalise(valorOriginal, novoValor)
+        : (valorOriginal ? String(valorOriginal).substring(0, 10) : '') === (novoValor ? String(novoValor).substring(0, 10) : '');
+    if (igual) {
         cancelarEdicao(td);
         return;
     }
 
+    await salvarColuna(td, editor, id, coluna, novoValor);
+}
+
+// Envia o PUT e sincroniza as tres listas em memoria. Extraido para o turno
+// poder salvar a coluna dia_analise reaproveitando o mesmo caminho.
+async function salvarColuna(td, editor, id, coluna, novoValor) {
     editor.disabled = true;
 
     try {
@@ -1192,6 +1301,11 @@ function renderizarCampoValorMassa() {
         input.id = 'valorMassa';
         input.className = 'bulk-input';
         container.appendChild(input);
+        if (campo === 'dia_analise') {
+            // O valor digitado aqui e so a data: a hora do pagamento e preservada
+            // por ordem em aplicarEdicaoEmMassa (ver diaAnaliseComData).
+            input.title = 'A hora do pagamento de cada ordem e preservada';
+        }
     } else if (campo === 'total_pecas') {
         var input = document.createElement('input');
         input.type = 'number';
@@ -1250,11 +1364,24 @@ async function aplicarEdicaoEmMassa() {
     var btn = document.getElementById('btnAplicarMassa');
     if (btn) btn.disabled = true;
 
+    // dia_analise: o input e type="date" (so AAAA-MM-DD). Monta o valor por ordem
+    // preservando a hora do pagamento de cada uma, senao todas virariam T3.
+    var porOrdem = null;
+    if (campo === 'dia_analise' && valor) {
+        porOrdem = {};
+        ids.forEach(function(id) {
+            var ordem = ordensCarregadas.find(function(o) { return String(o.id) === String(id); });
+            porOrdem[id] = diaAnaliseComData(ordem ? ordem.dia_analise : null, valor);
+        });
+    }
+
     try {
         var promessas = ids.map(function(id) {
+            var valorEnviado = porOrdem ? porOrdem[id] : valor;
+            if (porOrdem && !valorEnviado) return Promise.resolve({ ok: true, status: 200, id: id, dados: {} });
             return authFetch('/ordens/' + id, {
                 method: 'PUT',
-                body: JSON.stringify({ [campo]: valor })
+                body: JSON.stringify({ [campo]: valorEnviado })
             }).then(function(res) {
                 return res.json().then(function(dados) {
                     return { ok: res.ok, status: res.status, id: id, dados: dados };

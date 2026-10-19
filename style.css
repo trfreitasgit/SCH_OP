@@ -1712,6 +1712,12 @@ html:not(.dark) .priority-branca {
   color: var(--text-subtle);
 }
 
+/* A celula Turno e editavel por duplo clique (seletor T1/T2/T3).
+   Sem pagamento registrado nao ha turno para editar: o JS avisa e nao abre. */
+#tabelaOrdens tbody td[data-coluna="turno"] {
+  cursor: pointer;
+}
+
 /* ==========================================================================
    BATCH REGISTRATION PANEL (MANDATORY ACCORDION)
    ========================================================================== */
