@@ -6,6 +6,7 @@
 # servidor manda as linhas por stdin, sem consultar o banco pelo Python.
 supabase==2.33.0
 openpyxl==3.1.5
+reportlab==5.0.1
 python-dotenv==1.2.3
 # Base de fusos para o zoneinfo no Windows (o Linux do Render já traz a sua).
 tzdata==2025.3

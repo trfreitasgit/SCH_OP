@@ -940,6 +940,189 @@ document.getElementById('btnTodos').addEventListener('click', function () {
     aplicarFiltrosAvancados();
 });
 
+// ==========================================================================
+// SEQUENCIAMENTO DE PRODUCAO EM PDF (modal de selecao de setores)
+// --------------------------------------------------------------------------
+// Endpoint: POST /ordens/sequenciamento/pdf -> Blob application/pdf (inline)
+// Body: { setores_selecionados: [...] }  (opcional; vazio/ausente = todos)
+// Os valores seguem o vocabulario de setor do banco e das abas - 'Celula'
+// sem acento (o rotulo na tela e "Célula").
+// ==========================================================================
+var SETORES_SEQUENCIAMENTO = ['Montagem', 'Subconjunto', 'BCM', 'Celula', 'Importada', 'Usinagem'];
+var SETORES_PADRAO_SEQUENCIAMENTO = ['Montagem', 'Subconjunto', 'BCM', 'Celula'];
+
+function obterModalSequenciamento() {
+    return document.getElementById('modal-sequenciamento');
+}
+
+// Aba de setor ativa na tela; null quando o usuario esta em "Todos".
+function obterSetorAtivoDaTela() {
+    var aba = document.querySelector('.btnSetor.active');
+    return aba ? aba.dataset.setor : null;
+}
+
+function obterCheckboxesSequenciamento() {
+    return document.querySelectorAll('.seq-setor-checkbox');
+}
+
+function marcarSetoresSequenciamento(marcados) {
+    obterCheckboxesSequenciamento().forEach(function (checkbox) {
+        checkbox.checked = marcados.indexOf(checkbox.value) !== -1;
+    });
+}
+
+function obterSetoresMarcadosSequenciamento() {
+    var marcados = [];
+    obterCheckboxesSequenciamento().forEach(function (checkbox) {
+        if (checkbox.checked) marcados.push(checkbox.value);
+    });
+    return marcados;
+}
+
+function mostrarAvisoSequenciamento(mensagem) {
+    var aviso = document.getElementById('seq-aviso');
+    var texto = document.getElementById('seq-aviso-texto');
+    if (texto) texto.textContent = mensagem;
+    if (aviso) aviso.classList.remove('hidden');
+}
+
+function esconderAvisoSequenciamento() {
+    var aviso = document.getElementById('seq-aviso');
+    if (aviso) aviso.classList.add('hidden');
+}
+
+function abrirModalSequenciamento() {
+    var modal = obterModalSequenciamento();
+    if (!modal) return;
+
+    // Pre-selecao: aba de setor ativa -> so ela; em "Todos" -> os quatro principais.
+    var setorAtivo = obterSetorAtivoDaTela();
+    marcarSetoresSequenciamento(setorAtivo ? [setorAtivo] : SETORES_PADRAO_SEQUENCIAMENTO);
+
+    esconderAvisoSequenciamento();
+    modal.classList.remove('hidden');
+
+    var primeiroCheckbox = document.querySelector('.seq-setor-checkbox');
+    if (primeiroCheckbox) primeiroCheckbox.focus();
+}
+
+function fecharModalSequenciamento() {
+    var modal = obterModalSequenciamento();
+    if (!modal) return;
+    modal.classList.add('hidden');
+
+    // Devolve o foco ao botao que abriu (navegacao por teclado).
+    var botaoAbrir = document.getElementById('btn-imprimir-sequenciamento');
+    if (botaoAbrir) botaoAbrir.focus();
+}
+
+// Le a mensagem amigavel do backend ({ erro, detalhe }), sem estourar quando a
+// resposta nao e JSON (ex.: proxy devolvendo HTML).
+async function lerErroSequenciamento(resposta) {
+    try {
+        var dados = await resposta.json();
+        if (dados && dados.erro) return dados.erro;
+    } catch (erroLeitura) { /* resposta sem JSON */ }
+    return 'O servidor respondeu com status ' + resposta.status + '.';
+}
+
+async function gerarPdfSequenciamento() {
+    var setores = obterSetoresMarcadosSequenciamento();
+    if (!setores.length) {
+        mostrarAvisoSequenciamento('Selecione pelo menos um setor para gerar o PDF.');
+        return;
+    }
+
+    var botao = document.getElementById('btn-confirmar-sequenciamento');
+    var rotulo = document.getElementById('btn-confirmar-sequenciamento-label');
+    if (!botao) return;
+    var rotuloOriginal = rotulo ? rotulo.textContent : 'Gerar PDF';
+
+    esconderAvisoSequenciamento();
+    botao.disabled = true;
+    if (rotulo) rotulo.textContent = 'Gerando PDF...';
+
+    // Abre a aba ANTES do await: window.open depois de uma espera assincrona e
+    // tratado como pop-up e bloqueado. A URL do blob entra quando o PDF chega.
+    var janelaPdf = window.open('', '_blank');
+
+    try {
+        var resposta = await authFetch('/ordens/sequenciamento/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ setores_selecionados: setores })
+        });
+
+        if (!resposta.ok) {
+            var mensagem = await lerErroSequenciamento(resposta);
+            if (janelaPdf) janelaPdf.close();
+            // Mantem o modal aberto para o usuario ajustar a selecao.
+            mostrarAvisoSequenciamento(mensagem);
+            return;
+        }
+
+        var blob = await resposta.blob();
+        var url = URL.createObjectURL(blob);
+
+        if (janelaPdf) {
+            janelaPdf.location.href = url;
+        } else {
+            // Pop-up bloqueado: abre pela ancora (mesma experiencia de 1 clique).
+            var link = document.createElement('a');
+            link.href = url;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // A aba ja carregou o PDF; libera a memoria depois da impressao.
+        setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+
+        fecharModalSequenciamento();
+        mostrarToast('Sequenciamento gerado', setores.length + ' setor(es) incluído(s) no PDF.');
+    } catch (erro) {
+        if (janelaPdf) janelaPdf.close();
+        console.error('Erro ao gerar o sequenciamento:', erro);
+        mostrarAvisoSequenciamento('Falha de conexão ao gerar o sequenciamento. Tente novamente.');
+    } finally {
+        botao.disabled = false;
+        if (rotulo) rotulo.textContent = rotuloOriginal;
+    }
+}
+
+(function configurarModalSequenciamento() {
+    var botaoAbrir = document.getElementById('btn-imprimir-sequenciamento');
+    var modal = obterModalSequenciamento();
+    if (!botaoAbrir || !modal) return;
+
+    botaoAbrir.addEventListener('click', abrirModalSequenciamento);
+    document.getElementById('btn-confirmar-sequenciamento').addEventListener('click', gerarPdfSequenciamento);
+    document.getElementById('btn-cancelar-sequenciamento').addEventListener('click', fecharModalSequenciamento);
+    document.getElementById('btn-fechar-sequenciamento').addEventListener('click', fecharModalSequenciamento);
+
+    document.getElementById('btn-marcar-todos-sequenciamento').addEventListener('click', function () {
+        marcarSetoresSequenciamento(SETORES_SEQUENCIAMENTO);
+    });
+
+    document.getElementById('btn-desmarcar-todos-sequenciamento').addEventListener('click', function () {
+        marcarSetoresSequenciamento([]);
+    });
+
+    // Clique no fundo escuro fecha; clique dentro do card nao.
+    modal.addEventListener('click', function (evento) {
+        if (evento.target === modal) fecharModalSequenciamento();
+    });
+
+    // Esc fecha o modal, como no editor inline da tabela.
+    document.addEventListener('keydown', function (evento) {
+        if (evento.key !== 'Escape') return;
+        if (modal.classList.contains('hidden')) return;
+        fecharModalSequenciamento();
+    });
+})();
+
 // ORDENAÇÃO POR CABEÇALHO
 document.querySelectorAll('[data-campo]').forEach(function (cabecalho) {
     cabecalho.addEventListener('click', function () {

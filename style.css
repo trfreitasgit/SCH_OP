@@ -816,6 +816,14 @@ html:not(.dark) .app-sidebar {
   flex-wrap: wrap;
 }
 
+/* Altura unica na barra: .btn-primary-action e .btn-secondary-action tem duas
+   definicoes no arquivo (toolbar e painel de lote) com paddings diferentes, o
+   que deixava os botoes com 36/44/46px. A altura fixa alinha o grupo sem mexer
+   no padding horizontal de cada variante (todos sao inline-flex centralizados). */
+.toolbar-actions > button {
+  height: 40px;
+}
+
 /* MANDATORY BUTTON IDS: btnCopiar */
 #btnCopiar {
   display: inline-flex;
@@ -3307,3 +3315,215 @@ html:not(.dark) .filter-footer {
   color: var(--status-green);
 }
 .app-footer { text-align: center; padding: 20px 0; font-family: var(--font-mono); font-size: 11px; color: var(--text-subtle); opacity: 0.6; transition: var(--transition); } .app-footer:hover { opacity: 1; color: var(--primary); }
+
+/* ==========================================================================
+   SEQUENCIAMENTO DE PRODUCAO - BOTAO + MODAL DE SELECAO DE SETORES
+   Identidade: superficie do app + acento terciario (Electric Cyan) no botao e
+   na barra do titulo. O estado "setor marcado" segue exatamente o padrao dos
+   cards de setor do filtro lateral (--primary), para a mesma acao ter o mesmo
+   visual em qualquer lugar do dashboard.
+   ========================================================================== */
+
+.btn-sequenciamento {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--bg-container);
+  color: var(--text-main);
+  border: 1px solid var(--outline-light);
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-sequenciamento .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--tertiary);
+}
+
+.btn-sequenciamento:hover {
+  background-color: var(--bg-container-high);
+  color: var(--tertiary);
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 12px var(--tertiary-glow);
+}
+
+.btn-sequenciamento:focus-visible {
+  outline: 2px solid var(--tertiary);
+  outline-offset: 2px;
+}
+
+/* --- Overlay ------------------------------------------------------------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(4, 6, 10, 0.66);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  /* drawer = 45, overlay do menu mobile = 60, toast = 99 */
+  z-index: 70;
+  animation: modalOverlayIn 0.18s ease-out;
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+@keyframes modalOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalCardIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+/* --- Card ---------------------------------------------------------------- */
+.modal-card {
+  width: 100%;
+  max-width: 540px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--bg-container);
+  border: 1px solid var(--outline-light);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  animation: modalCardIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--outline-light);
+}
+
+.modal-title-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.modal-accent-bar {
+  width: 4px;
+  align-self: stretch;
+  min-height: 38px;
+  background-color: var(--tertiary);
+  border-radius: 2px;
+  box-shadow: 0 0 10px var(--tertiary-glow);
+  flex-shrink: 0;
+}
+
+.modal-title {
+  font-family: var(--font-headline);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-main);
+}
+
+.modal-subtitle {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.modal-body {
+  padding: 20px 24px;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px 20px;
+  border-top: 1px solid var(--outline-light);
+}
+
+/* Mesma altura para as duas acoes, pelo mesmo motivo da toolbar. */
+.modal-footer > button {
+  height: 42px;
+}
+
+/* --- Selecao de setores -------------------------------------------------- */
+.seq-quick-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.seq-setores-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* Reaproveita .filter-option (superficie + hover) no HTML; aqui so ajusta a
+   densidade e o realce do setor marcado (mesmo padrao dos cards do drawer). */
+.seq-setor-option {
+  padding: 12px 14px;
+  border-radius: 10px;
+  /* Contorno sutil tambem nos nao marcados: o card do modal e mais escuro que o
+     grupo do drawer, onde a superficie sozinha ja delimita o card. */
+  border-color: var(--outline-light);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.seq-setor-option:has(input:checked) {
+  border-color: var(--primary);
+  background: rgba(249, 115, 22, 0.06);
+}
+
+.seq-setor-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.seq-aviso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--status-amber-border);
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 8px;
+  color: var(--status-amber);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.seq-aviso.hidden {
+  display: none;
+}
+
+#btn-confirmar-sequenciamento:disabled {
+  opacity: 0.65;
+  cursor: wait;
+  filter: none;
+  transform: none;
+}
+
+@media (max-width: 640px) {
+  .modal-overlay { padding: 12px; }
+  .modal-card { border-radius: 16px; }
+  .modal-header, .modal-body, .modal-footer { padding-left: 16px; padding-right: 16px; }
+  .seq-setores-grid { grid-template-columns: 1fr; }
+}

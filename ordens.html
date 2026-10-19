@@ -182,6 +182,13 @@
                         <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
                         <span id="btnExportarExcelLabel">Exportar para Excel</span>
                     </button>
+                    <!-- SEQUENCIAMENTO DE PRODUCAO: abre o modal de selecao de setores.
+                         O PDF e gerado pelo endpoint POST /ordens/sequenciamento/pdf. -->
+                    <button id="btn-imprimir-sequenciamento" class="btn-sequenciamento" type="button"
+                        title="Gerar o PDF de sequenciamento de produção dos setores escolhidos">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">print</span>
+                        <span>Sequenciamento</span>
+                    </button>
                     <!-- Toggle Filter Drawer -->
                     <button id="btn-toggle-filters" class="btn-secondary-action" type="button" title="Abrir/Fechar Filtros Laterais">
                         <span class="material-symbols-outlined" style="font-size: 18px;">filter_alt</span>
@@ -802,6 +809,78 @@
             <span class="filter-version">v4.9.0-PROD</span>
         </div>
     </aside>
+
+    <!-- ==================================================================
+         MODAL: SEQUENCIAMENTO DE PRODUCAO (selecao de setores)
+         Overlay proprio (nao usa o filter-drawer). A logica esta em ordens.js
+         (regra do projeto: nenhum <script> inline novo).
+         Os valores dos checkboxes sao os mesmos data-setor das abas e o mesmo
+         vocabulario de setor usado pelo banco ('Celula' sem acento).
+         ================================================================== -->
+    <div class="modal-overlay hidden" id="modal-sequenciamento" role="dialog" aria-modal="true"
+        aria-labelledby="titulo-sequenciamento" aria-describedby="subtitulo-sequenciamento">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-accent-bar"></span>
+                    <div>
+                        <h2 class="modal-title" id="titulo-sequenciamento">Imprimir Sequenciamento de Produção</h2>
+                        <span class="modal-subtitle" id="subtitulo-sequenciamento">Selecione os setores que deseja incluir no documento:</span>
+                    </div>
+                </div>
+                <button class="btn-icon" id="btn-fechar-sequenciamento" type="button" title="Fechar" aria-label="Fechar">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="seq-quick-actions">
+                    <button class="btn-secondary-action" id="btn-marcar-todos-sequenciamento" type="button">Marcar Todos</button>
+                    <button class="btn-secondary-action" id="btn-desmarcar-todos-sequenciamento" type="button">Desmarcar Todos</button>
+                </div>
+
+                <div class="seq-setores-grid">
+                    <label class="filter-option seq-setor-option">
+                        <input type="checkbox" class="seq-setor-checkbox" value="Montagem" checked>
+                        <span>Montagem</span>
+                    </label>
+                    <label class="filter-option seq-setor-option">
+                        <input type="checkbox" class="seq-setor-checkbox" value="Subconjunto" checked>
+                        <span>Subconjunto</span>
+                    </label>
+                    <label class="filter-option seq-setor-option">
+                        <input type="checkbox" class="seq-setor-checkbox" value="BCM" checked>
+                        <span>BCM</span>
+                    </label>
+                    <label class="filter-option seq-setor-option">
+                        <input type="checkbox" class="seq-setor-checkbox" value="Celula" checked>
+                        <span>Célula</span>
+                    </label>
+                    <label class="filter-option seq-setor-option">
+                        <input type="checkbox" class="seq-setor-checkbox" value="Importada">
+                        <span>Importada</span>
+                    </label>
+                    <label class="filter-option seq-setor-option">
+                        <input type="checkbox" class="seq-setor-checkbox" value="Usinagem">
+                        <span>Usinagem</span>
+                    </label>
+                </div>
+
+                <div class="seq-aviso hidden" id="seq-aviso" role="alert">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">warning</span>
+                    <span id="seq-aviso-texto">Selecione pelo menos um setor.</span>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-secondary-action" id="btn-cancelar-sequenciamento" type="button">Cancelar</button>
+                <button class="btn-primary-action" id="btn-confirmar-sequenciamento" type="button">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">print</span>
+                    <span id="btn-confirmar-sequenciamento-label">Gerar PDF</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- TOAST NOTIFICATION -->
     <div class="toast-notification" id="toast-sap">
