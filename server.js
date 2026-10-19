@@ -1,4 +1,4 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 var express = require('express');
 var app = express();
 var { createClient } = require('@supabase/supabase-js');
@@ -8,6 +8,7 @@ const path = require('path');
 var fs = require('fs');
 var exportacao = require('./lib/export-ordens');
 var sequenciamento = require('./lib/sequenciamento-ordens');
+var cacheAutenticacao = require('./lib/auth-cache');
 
 
 app.use(express.json());
@@ -30,6 +31,13 @@ function isApiRequest(req) {
            req.path.startsWith('/ordens');
 }
 
+// Tokens validados ficam em memoria por alguns minutos: cada miss custa uma
+// chamada HTTP + um evento de log no Supabase. A lib garante que o cache nunca
+// sobrevive ao `exp` do proprio token e limita o tamanho do Map.
+var cacheDeTokens = cacheAutenticacao.criarCacheDeAutenticacao({
+    ttlMs: Number(process.env.AUTH_CACHE_TTL_MS) || cacheAutenticacao.TTL_PADRAO_MS
+});
+
 async function requireAuth(req, res, next) {
     const authHeader = req.headers.authorization;
     const cookieToken = req.cookies?.access_token;
@@ -42,6 +50,12 @@ async function requireAuth(req, res, next) {
         return res.redirect(302, '/login');
     }
 
+    const usuarioEmCache = cacheDeTokens.obter(token);
+    if (usuarioEmCache) {
+        req.user = usuarioEmCache;
+        return next();
+    }
+
     try {
         const { data: { user }, error } = await supabase.auth.getUser(token);
         
@@ -52,6 +66,7 @@ async function requireAuth(req, res, next) {
             return res.redirect(302, '/login');
         }
         
+        cacheDeTokens.guardar(token, user);
         req.user = user;
         next();
     } catch (err) {
@@ -90,6 +105,11 @@ var CAMPOS_ORDENACAO_VALIDOS = [
     'data_abertura', 'dia_analise', 'situacao', 'prioridade',
     'observacao', 'peso_prioridade', 'created_at', 'updated_at'
 ];
+
+// Projecao das rotas de listagem. '*' devolveria a tabela inteira: se o banco
+// ganhar colunas que o frontend nao usa, elas iriam no payload (e no log) de
+// toda listagem. Uma lista unica evita divergencia entre as duas rotas.
+var CAMPOS_ORDEM = CAMPOS_ORDENACAO_VALIDOS.join(', ');
 
 function buildOrderQuery(query, sort, order, defaultOrders) {
     var campo = sort && CAMPOS_ORDENACAO_VALIDOS.includes(sort) ? sort : null;
@@ -174,7 +194,7 @@ app.get('/ordens', requireAuth, async function (req, res) {
     
     var query = supabase
         .from('ordens_producao')
-        .select('*');
+        .select(CAMPOS_ORDEM);
     
     query = buildOrderQuery(query, sort, order, [
         { campo: 'id', ascending: false }
@@ -194,7 +214,7 @@ app.get('/ordens/pendentes', requireAuth, async function (req, res) {
     
     var query = supabase
         .from('ordens_producao')
-        .select('*')
+        .select(CAMPOS_ORDEM)
         .neq('situacao', 'Encerrado');
     
     query = buildOrderQuery(query, sort, order, [
