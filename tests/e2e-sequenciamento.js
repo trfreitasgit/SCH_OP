@@ -33,12 +33,20 @@ const pdfsNoTemp = () => fs.readdirSync(os.tmpdir()).filter((f) => /^sequenciame
     const H = { 'Content-Type': 'application/json', Accept: '*/*', Authorization: 'Bearer ' + token };
     console.log('Login OK\n');
 
-    // Quantas ordens pendentes existem hoje (situacao != 'Pago')
+    // Ordens que NAO entram na folha (mesma lista de lib/sequenciamento-ordens.js)
     const todas = await (await fetch(`${BASE}/ordens`, { headers: H })).json();
-    const pendentes = todas.filter((o) => o.situacao !== 'Pago');
-    console.log('ordens no banco:', todas.length, '| pendentes (situacao != Pago):', pendentes.length);
+    const EXCLUIDAS = ['Pago', 'Encerrado'];
+    const pendentes = todas.filter((o) => !EXCLUIDAS.includes(o.situacao));
+    const foraDaFolha = todas.filter((o) => EXCLUIDAS.includes(o.situacao));
+    console.log('ordens no banco:', todas.length, '| na folha:', pendentes.length, '| fora (Pago/Encerrado):', foraDaFolha.length);
+    console.log('encerradas no banco:', foraDaFolha.filter((o) => o.situacao === 'Encerrado').map((o) => o.numero_op).join(', ') || 'nenhuma');
     const setores = Array.from(new Set(pendentes.map((o) => o.setor))).filter(Boolean);
     console.log('setores com pendencia:', JSON.stringify(setores), '\n');
+
+    // Setor que so tem ordem fora da folha: nao pode gerar PDF.
+    const setoresDaFolha = new Set(pendentes.map((o) => o.setor));
+    const setorSoExcluido = Array.from(new Set(foraDaFolha.map((o) => o.setor)))
+        .find((s) => s && !setoresDaFolha.has(s));
 
     const antes = pdfsNoTemp();
     console.log('pdfs sequenciamento_*.pdf no temp antes:', antes.length);
@@ -68,6 +76,20 @@ const pdfsNoTemp = () => fs.readdirSync(os.tmpdir()).filter((f) => /^sequenciame
         corpoFantasma.erro || ''
     );
 
+    if (setorSoExcluido) {
+        const soExcluido = await fetch(`${BASE}/ordens/sequenciamento/pdf`, {
+            method: 'POST', headers: H,
+            body: JSON.stringify({ setores_selecionados: [setorSoExcluido] })
+        });
+        check(
+            'setor "' + setorSoExcluido + '" so com ordem Pago/Encerrado -> 400',
+            soExcluido.status === 400,
+            'status=' + soExcluido.status
+        );
+    } else {
+        console.log('  (nenhum setor so com ordens Pago/Encerrado hoje)');
+    }
+
     console.log('\n== PDF com todas as ordens pendentes ==');
     const resp = await fetch(`${BASE}/ordens/sequenciamento/pdf`, {
         method: 'POST', headers: H, body: JSON.stringify({})
@@ -83,6 +105,33 @@ const pdfsNoTemp = () => fs.readdirSync(os.tmpdir()).filter((f) => /^sequenciame
     check('corpo nao vazio', buf.length > 1000, buf.length + ' bytes');
     check('assinatura %PDF', buf.slice(0, 5).toString() === '%PDF-', buf.slice(0, 8).toString());
     check('termina com EOF do PDF', buf.slice(-1024).toString('latin1').includes('%%EOF'));
+
+    // Prova de conteudo: OP encerrada nao pode aparecer na folha.
+    const encerradas = foraDaFolha.filter((o) => o.situacao === 'Encerrado').map((o) => o.numero_op);
+    if (encerradas.length) {
+        const arquivo = require('node:path').join(os.tmpdir(), 'e2e_seq_conteudo.pdf');
+        fs.writeFileSync(arquivo, buf);
+        try {
+            const script =
+                'import sys\n' +
+                'from pypdf import PdfReader\n' +
+                'print("\\n".join((p.extract_text() or "") for p in PdfReader(sys.argv[1]).pages))\n';
+            const texto = require('node:child_process').execFileSync('python', ['-c', script, arquivo], {
+                encoding: 'utf8',
+                env: Object.assign({}, process.env, { PYTHONIOENCODING: 'utf-8' })
+            });
+            const vazadas = encerradas.filter((op) => texto.includes(String(op)));
+            check(
+                'nenhuma OP Encerrado no PDF (' + encerradas.length + ' no banco)',
+                vazadas.length === 0,
+                vazadas.length ? 'vazou: ' + vazadas.join(', ') : 'ok'
+            );
+        } catch (e) {
+            console.log('  SKIP checagem de texto (pypdf indisponivel):', e.message.split('\n')[0]);
+        } finally {
+            fs.unlinkSync(arquivo);
+        }
+    }
 
     console.log('\n== PDF filtrado por setor ==');
     if (setores.length) {

@@ -85,7 +85,11 @@ function clienteFalso(registros, erro) {
             return this;
         },
         select(campos) { this._q.campos = campos; return this; },
-        neq(coluna, valor) { this._q.neq = [coluna, valor]; return this; },
+        neq(coluna, valor) {
+            if (!this._q.neqs) this._q.neqs = [];
+            this._q.neqs.push([coluna, valor]);
+            return this;
+        },
         in(coluna, valores) { this._q.in = [coluna, valores]; return this; },
         then(resolve) {
             resolve(erro ? { data: null, error: erro } : { data: registros, error: null });
@@ -94,14 +98,22 @@ function clienteFalso(registros, erro) {
     return { construtor, consultas };
 }
 
-test('buscarOrdensPendentes consulta a tabela certa e exclui as pagas', async () => {
+test('buscarOrdensPendentes consulta a tabela certa e exclui pagas e encerradas', async () => {
     const { construtor, consultas } = clienteFalso([{ id: 1 }]);
 
     const ordens = await seq.buscarOrdensPendentes(construtor, null);
 
     assert.strictEqual(consultas[0].tabela, 'ordens_producao');
-    assert.deepStrictEqual(consultas[0].neq, ['situacao', 'Pago']);
+    assert.deepStrictEqual(consultas[0].neqs, [
+        ['situacao', 'Pago'],
+        ['situacao', 'Encerrado']
+    ]);
     assert.deepStrictEqual(ordens, [{ id: 1 }]);
+});
+
+test('a lista de exclusao nao bloqueia situacoes pendentes (Falta Pagar)', () => {
+    assert.deepStrictEqual(seq.SITUACOES_EXCLUIDAS, ['Pago', 'Encerrado']);
+    assert.ok(!seq.SITUACOES_EXCLUIDAS.includes('Falta Pagar'));
 });
 
 test('buscarOrdensPendentes pede exatamente os campos do sequenciamento', async () => {
