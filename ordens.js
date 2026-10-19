@@ -567,7 +567,96 @@ function renderizarTabela(lista) {
     atualizarEstadoSelecao();
 }
 
+// ==========================================================================
+// ORDENACAO CLIENT-SIDE (em memoria)
+// --------------------------------------------------------------------------
+// Antes, cada clique em cabecalho chamava carregarOrdensPendentes(sort, order),
+// que refazia GET /ordens/pendentes + consulta ao Supabase so para reordenar
+// dados que o navegador ja tinha em ordensCarregadas. Agora a ordenacao ocorre
+// sobre esse array e o pipeline (filtros -> paginacao) redesenha a tabela na
+// hora, sem nenhuma requisicao.
+// ==========================================================================
+
+// Campos com comparacao aritmetica.
+var CAMPOS_ORDENACAO_NUMERICA = ['id', 'total_pecas', 'peso_prioridade'];
+
+// Campos com comparacao por instante.
+var CAMPOS_ORDENACAO_DATA = ['data_abertura', 'dia_analise'];
+
+// Texto comparavel: sem acento, minusculo e sem espacos nas pontas, para
+// "Célula"/"Celula" e "Pendência"/"Pendencia" caírem na mesma posicao.
+function normalizarParaOrdenacao(valor) {
+    return String(valor)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function ehVazioParaOrdenacao(valor) {
+    return valor === null || valor === undefined || String(valor).trim() === '';
+}
+
+// Instante (ms) de uma data. AAAA-MM-DD vale como meia-noite da fabrica, igual
+// ao normalizarDiaAnalise do backend: sem isso a mesma data gravada nos dois
+// formatos (date pura e timestamptz) ordenaria com 3h de diferenca.
+function instanteParaOrdenacao(valor) {
+    var texto = String(valor).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) return new Date(texto + 'T00:00:00-03:00').getTime();
+    var ms = new Date(texto).getTime();
+    return isNaN(ms) ? null : ms;
+}
+
+function compararValoresOrdenacao(a, b, campo) {
+    if (CAMPOS_ORDENACAO_NUMERICA.indexOf(campo) !== -1) {
+        var na = Number(a);
+        var nb = Number(b);
+        if (na < nb) return -1;
+        if (na > nb) return 1;
+        return 0;
+    }
+
+    if (CAMPOS_ORDENACAO_DATA.indexOf(campo) !== -1) {
+        var ma = instanteParaOrdenacao(a);
+        var mb = instanteParaOrdenacao(b);
+        if (ma === null && mb === null) return 0;
+        if (ma === null) return 1;
+        if (mb === null) return -1;
+        return ma < mb ? -1 : (ma > mb ? 1 : 0);
+    }
+
+    return normalizarParaOrdenacao(a).localeCompare(normalizarParaOrdenacao(b), 'pt-BR');
+}
+
+// Ordena a lista no lugar e devolve a propria referencia.
+// Nulos/vazios vao SEMPRE para o fim (equivalente ao nullsLast do banco), tanto
+// crescente quanto decrescente. Empates - inclusive entre vazios - saem por id
+// desc, que era o desempate de /ordens/pendentes: sem esse desempate a ordem
+// dentro do grupo vazio herdava a ordenacao anterior e mudava de tela para tela.
+function ordenarListaPorCampo(lista, campo, crescente) {
+    var fator = crescente ? 1 : -1;
+
+    lista.sort(function (a, b) {
+        var vazioA = ehVazioParaOrdenacao(a[campo]);
+        var vazioB = ehVazioParaOrdenacao(b[campo]);
+
+        // Um lado vazio: vazio sempre no fim.
+        if (vazioA !== vazioB) return vazioA ? 1 : -1;
+
+        if (!vazioA) {
+            var resultado = compararValoresOrdenacao(a[campo], b[campo], campo);
+            if (resultado !== 0) return resultado * fator;
+        }
+
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+    });
+
+    return lista;
+}
+
 function ordenarPor(campo) {
+    if (!campo) return;
+
     if (campo === campoOrdenado) {
         ordemCrescente = !ordemCrescente;
     } else {
@@ -575,28 +664,33 @@ function ordenarPor(campo) {
         ordemCrescente = true;
     }
 
-    // Server-side sorting: fetch from API with sort/order params
+    // Reordena a lista que ja esta em memoria e manda o pipeline redesenhar.
+    // Nenhum fetch aqui: a API devolve todas as ordens de uma vez.
+    ordenarListaPorCampo(ordensCarregadas, campoOrdenado, ordemCrescente);
+
     paginacao.paginaAtual = 1;
-    carregarOrdensPendentes(campoOrdenado, ordemCrescente ? 'asc' : 'desc');
+    aplicarFiltros();
 }
 
-// Carga inicial das ordens pendentes
-async function carregarOrdensPendentes(sort, order) {
+// Carga das ordens pendentes (abertura da pagina e mutacoes reais: cadastro em
+// lote, edicao, exclusao). A ordenacao por coluna NAO passa mais por aqui: ver
+// ordenarPor(), que ordena em memoria sem tocar na API.
+async function carregarOrdensPendentes() {
     try {
-        console.log('[DEBUG] carregarOrdensPendentes: iniciando fetch...');
-        var url = '/ordens/pendentes';
-        if (sort && order) {
-            url += '?sort=' + encodeURIComponent(sort) + '&order=' + encodeURIComponent(order);
-        }
-        const resposta = await authFetch(url);
-        console.log('[DEBUG] carregarOrdensPendentes: response status:', resposta.status);
+        const resposta = await authFetch('/ordens/pendentes');
         const dados = await resposta.json();
-        console.log('[DEBUG] carregarOrdensPendentes: dados recebidos:', dados.length, 'ordens');
         ordensCarregadas = dados;
+
+        // Preserva a ordenacao escolhida pelo usuario entre recargas: sem isso,
+        // um cadastro em lote devolveria a lista na ordem padrao do banco.
+        if (campoOrdenado) {
+            ordenarListaPorCampo(ordensCarregadas, campoOrdenado, ordemCrescente);
+        }
+
         paginacao.paginaAtual = 1;
         paginacao.itensPorPagina = 10;
         // Reaplica o pipeline (filtros avancados + filtro rapido) em vez de renderizar
-        // a lista crua: sem isso, ordenar por coluna descartava os filtros ativos.
+        // a lista crua: sem isso, recarregar descartava os filtros ativos.
         aplicarFiltros();
     } catch (erro) {
         console.error('Erro ao carregar ordens:', erro);
