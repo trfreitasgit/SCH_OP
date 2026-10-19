@@ -341,6 +341,38 @@ def test_coluna_obs_nao_usa_pautado_fixo(tmp_path):
     assert 'TEXTO-DE-MONTAGEM' not in texto
 
 
+def test_fontes_das_celulas_sao_maiores_e_legiveis():
+    estilos = seq._estilos()
+
+    assert estilos['base'].fontSize >= 9
+    assert estilos['op'].fontSize >= 11
+    assert estilos['material'].fontSize >= 9
+    assert estilos['qtd'].fontSize >= 10
+    assert estilos['prioridade'].fontSize >= 8
+    assert estilos['obs'].fontSize >= 8
+
+
+def test_op_material_e_qtd_centralizados():
+    from reportlab.lib.enums import TA_CENTER
+
+    estilos = seq._estilos()
+
+    assert estilos['op'].alignment == TA_CENTER
+    assert estilos['material'].alignment == TA_CENTER
+    assert estilos['qtd'].alignment == TA_CENTER
+
+
+def test_coluna_prioridade_comporta_o_rotulo_mais_longo():
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    estilo = seq._estilos()['prioridade']
+    largura_util = seq.LARGURAS_COLUNAS[4] - 8  # padding de 4pt de cada lado
+
+    for valor in ['Pendencia Comercial', 'Exportacao', 'Linha Pesada', 'Tryout']:
+        rotulo = seq.rotulo_prioridade(valor)
+        assert stringWidth(rotulo, estilo.fontName, estilo.fontSize) <= largura_util
+
+
 def test_pdf_inclui_o_logo_da_schadek(tmp_path):
     assert os.path.exists(seq.LOGO_PADRAO)
     assert seq.LARGURA_LOGO == 100

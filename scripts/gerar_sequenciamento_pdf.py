@@ -74,7 +74,7 @@ CABECALHOS_TABELA = [
 ]
 
 # Larguras somam a área útil do A4 (595,28 - 2 * 30 = 535,28pt).
-LARGURAS_COLUNAS = [26.0, 66.0, 72.0, 55.0, 128.0, 188.28]
+LARGURAS_COLUNAS = [28.0, 70.0, 78.0, 58.0, 142.0, 159.28]
 
 RAIZ = Path(__file__).resolve().parents[1]
 LOGO_PADRAO = str(RAIZ / 'assets' / 'Logo_schadek.png')
@@ -263,26 +263,28 @@ def _texto_observacao(registro):
 def _estilos():
     """Estilos de parágrafo usados nas células e nos cabeçalhos."""
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.enums import TA_LEFT, TA_RIGHT, TA_CENTER
+    from reportlab.lib.enums import TA_LEFT, TA_CENTER
 
-    base = ParagraphStyle('base', fontName='Helvetica', fontSize=8, leading=10)
+    base = ParagraphStyle('base', fontName='Helvetica', fontSize=9, leading=11)
     return {
         'base': base,
         'titulo': ParagraphStyle('titulo', parent=base, fontName='Helvetica-Bold',
-                                 fontSize=15, leading=18, alignment=TA_CENTER),
-        'emissao': ParagraphStyle('emissao', parent=base, fontSize=8, leading=10,
+                                 fontSize=16, leading=19, alignment=TA_CENTER),
+        'emissao': ParagraphStyle('emissao', parent=base, fontSize=8.5, leading=10,
                                   alignment=TA_CENTER, textColor='#4B5563'),
         'setor': ParagraphStyle('setor', parent=base, fontName='Helvetica-Bold',
-                                fontSize=10, leading=12, textColor=COR_TEXTO_SETOR),
+                                fontSize=11, leading=13, textColor=COR_TEXTO_SETOR),
         'header': ParagraphStyle('header', parent=base, fontName='Helvetica-Bold',
-                                 fontSize=8, leading=10, alignment=TA_CENTER,
+                                 fontSize=9, leading=11, alignment=TA_CENTER,
                                  textColor=COR_TEXTO_CABECALHO),
         'op': ParagraphStyle('op', parent=base, fontName='Helvetica-Bold',
-                             fontSize=10, leading=12),
-        'qtd': ParagraphStyle('qtd', parent=base, fontSize=9, leading=11,
-                              alignment=TA_RIGHT),
-        'prioridade': ParagraphStyle('prioridade', parent=base, fontSize=7.5, leading=9),
-        'obs': ParagraphStyle('obs', parent=base, fontSize=7, leading=9, alignment=TA_LEFT),
+                             fontSize=11.5, leading=13, alignment=TA_CENTER),
+        'material': ParagraphStyle('material', parent=base, fontSize=9, leading=11,
+                                   alignment=TA_CENTER),
+        'qtd': ParagraphStyle('qtd', parent=base, fontSize=10.5, leading=12,
+                              alignment=TA_CENTER),
+        'prioridade': ParagraphStyle('prioridade', parent=base, fontSize=8.5, leading=10.5),
+        'obs': ParagraphStyle('obs', parent=base, fontSize=8, leading=10, alignment=TA_LEFT),
     }
 
 
@@ -297,7 +299,7 @@ def _linha_tabela(indice, registro, estilos):
     return [
         Paragraph('%dº' % indice, estilos['base']),
         Paragraph(escape(str(registro.get('numero_op') or '')), estilos['op']),
-        Paragraph(escape(str(registro.get('material') or '').strip()), estilos['base']),
+        Paragraph(escape(str(registro.get('material') or '').strip()), estilos['material']),
         Paragraph(escape(formatar_milhar(registro.get('total_pecas'))), estilos['qtd']),
         Paragraph(
             '<font color="%s">%s</font>' % (cor_prioridade, escape(rotulo_prioridade(prioridade))),
