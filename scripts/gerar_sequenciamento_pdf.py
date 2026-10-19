@@ -42,12 +42,15 @@ PRIORIDADES_AMARELAS = ('PENDENCIA COMERCIAL',)
 
 RANK_PRIORIDADE = {'VERMELHA': 0, 'AMARELA': 1, 'BRANCA': 2}
 
-PREENCHIMENTO_VISTO_OUTROS_SETORES = '[  ] ____________________'
+# Logo no cabeçalho (proporção quadrada; 300x300 no arquivo original).
+LARGURA_LOGO = 100
 
 # Cores do documento: grafite industrial com acento laranja Schadek.
 COR_BARRA_SETOR = '#1E293B'
 COR_ACENTO_SETOR = '#D97706'
 COR_TEXTO_SETOR = '#FFFFFF'
+COR_CABECALHO_TABELA = '#E2E8F0'
+COR_TEXTO_CABECALHO = '#0F172A'
 COR_GRADE = '#B0B7C3'
 COR_FUNDO_VERMELHA = '#FFE2E2'
 COR_FUNDO_AMARELA = '#FFF3BF'
@@ -74,6 +77,7 @@ CABECALHOS_TABELA = [
 LARGURAS_COLUNAS = [26.0, 66.0, 72.0, 55.0, 128.0, 188.28]
 
 RAIZ = Path(__file__).resolve().parents[1]
+LOGO_PADRAO = str(RAIZ / 'assets' / 'Logo_schadek.png')
 
 
 # ---------------------------------------------------------------------------
@@ -249,12 +253,11 @@ def agora_fabrica():
 
 
 def _texto_observacao(registro):
-    """Coluna de visto: observação do banco (Importada/Usinagem) ou pauta."""
+    """Coluna de visto: observação do componente (Importada/Usinagem) ou vazio."""
     setor = normalizar_texto(registro.get('setor'))
     if setor in {normalizar_texto(nome) for nome in SETORES_COM_OBSERVACAO}:
-        detalhe = str(registro.get('observacao') or '').strip()
-        return ('%s [  ]' % escape(detalhe)).strip() if detalhe else '[  ]'
-    return PREENCHIMENTO_VISTO_OUTROS_SETORES
+        return escape(str(registro.get('observacao') or '').strip())
+    return ''
 
 
 def _estilos():
@@ -272,7 +275,8 @@ def _estilos():
         'setor': ParagraphStyle('setor', parent=base, fontName='Helvetica-Bold',
                                 fontSize=10, leading=12, textColor=COR_TEXTO_SETOR),
         'header': ParagraphStyle('header', parent=base, fontName='Helvetica-Bold',
-                                 fontSize=8, leading=10, alignment=TA_CENTER),
+                                 fontSize=8, leading=10, alignment=TA_CENTER,
+                                 textColor=COR_TEXTO_CABECALHO),
         'op': ParagraphStyle('op', parent=base, fontName='Helvetica-Bold',
                              fontSize=10, leading=12),
         'qtd': ParagraphStyle('qtd', parent=base, fontSize=9, leading=11,
@@ -309,8 +313,8 @@ def _estilo_tabela(quantidade_linhas):
     from reportlab.platypus import TableStyle
 
     regras = [
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(COR_BARRA_SETOR)),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor(COR_CABECALHO_TABELA)),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor(COR_TEXTO_CABECALHO)),
         ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor(COR_GRADE)),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('TOPPADDING', (0, 0), (-1, -1), 3),
@@ -371,6 +375,30 @@ def _barra_setor(texto, estilos, largura_total):
     return barra
 
 
+def _cabecalho_geral(estilos, emitido_em, largura_total):
+    """Logo à esquerda e título/data à direita (sem logo, só o texto)."""
+    from reportlab.platypus import Image, Paragraph, Table, TableStyle
+
+    texto = [
+        Paragraph(TITULO, estilos['titulo']),
+        Paragraph('Emitido em %s · %s' % (emitido_em, FUSO_FABRICA), estilos['emissao']),
+    ]
+
+    if not os.path.exists(LOGO_PADRAO):
+        return texto
+
+    logo = Image(LOGO_PADRAO, width=LARGURA_LOGO, height=LARGURA_LOGO)
+    cabecalho = Table([[logo, texto]], colWidths=[LARGURA_LOGO + 12, largura_total - LARGURA_LOGO - 12])
+    cabecalho.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    return [cabecalho]
+
+
 def _rodape(canvas, documento):
     """Rodapé discreto com numeração de páginas."""
     from reportlab.lib.pagesizes import A4
@@ -396,13 +424,11 @@ def gerar_pdf(ordens, destino, setores_selecionados=None):
     estilos = _estilos()
     emitido_em = agora_fabrica().strftime('%d/%m/%Y %H:%M')
 
-    historia = [
-        Paragraph(TITULO, estilos['titulo']),
-        Paragraph('Emitido em %s · %s' % (emitido_em, FUSO_FABRICA), estilos['emissao']),
-        Spacer(1, 10),
-    ]
-
     largura_total = A4[0] - 2 * MARGEM_LATERAL
+
+    historia = _cabecalho_geral(estilos, emitido_em, largura_total)
+    historia.append(Spacer(1, 10))
+
     for setor, ordens_setor in grupos:
         historia.append(_barra_setor(cabecalho_setor(setor, ordens_setor), estilos, largura_total))
         historia.append(_tabela_setor(ordens_setor, estilos))

@@ -97,6 +97,14 @@ def test_barra_de_setor_usa_grafite_com_acento_laranja():
     assert seq.COR_ACENTO_SETOR == '#D97706'
 
 
+def test_cabecalho_da_tabela_e_claro_com_texto_escuro():
+    """Cabeçalho escuro com Paragraph preto ficava ilegível na impressão."""
+    assert seq.COR_CABECALHO_TABELA == '#E2E8F0'
+    assert seq.COR_TEXTO_CABECALHO == '#0F172A'
+
+    assert str(seq._estilos()['header'].textColor).upper() == seq.COR_TEXTO_CABECALHO
+
+
 @pytest.mark.parametrize('valor,esperado', [
     (1500, '1.500'),
     (0, '0'),
@@ -317,17 +325,37 @@ def test_importada_e_usinagem_imprimem_a_observacao_do_banco(tmp_path):
     assert 'TEXTO-QUE-NAO-DEVE-APARECER' not in texto
 
 
-def test_coluna_obs_tem_caixa_de_visto_em_todos_os_setores(tmp_path):
+def test_coluna_obs_nao_usa_pautado_fixo(tmp_path):
     ordens = [
-        ordem(setor='Montagem', numero_op='MON1', observacao='X'),
-        ordem(setor='Importada', numero_op='IMP1', observacao='COMP-1'),
+        ordem(setor='Montagem', numero_op='MON1', observacao='TEXTO-DE-MONTAGEM'),
+        ordem(setor='Importada', numero_op='IMP1', observacao='COMP-9'),
     ]
 
     texto = texto_do_pdf(gerar(tmp_path, ordens))
 
-    # O extrator colapsa espaços internos ("[  ]" vira "[ ]"): regex tolera.
-    assert len(re.findall(r'\[\s*\]', texto)) == 2
-    assert '____________________' in texto
+    # Sem caixa de visto e sem pauta fixa em nenhum setor.
+    assert not re.findall(r'\[\s*\]', texto)
+    assert '____' not in texto
+    # Só Importada/Usinagem imprimem a observação do componente.
+    assert 'COMP-9' in texto
+    assert 'TEXTO-DE-MONTAGEM' not in texto
+
+
+def test_pdf_inclui_o_logo_da_schadek(tmp_path):
+    assert os.path.exists(seq.LOGO_PADRAO)
+    assert seq.LARGURA_LOGO == 100
+
+    pagina = pypdf.PdfReader(gerar(tmp_path, [ordem()])).pages[0]
+
+    assert '/XObject' in pagina['/Resources']
+
+
+def test_pdf_sem_arquivo_de_logo_ainda_e_gerado(tmp_path, monkeypatch):
+    monkeypatch.setattr(seq, 'LOGO_PADRAO', str(tmp_path / 'nao-existe.png'))
+
+    caminho = gerar(tmp_path, [ordem()])
+
+    assert 'SCHADEK' in texto_do_pdf(caminho)
 
 
 def test_pdf_respeita_setores_selecionados(tmp_path):
