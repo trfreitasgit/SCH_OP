@@ -78,12 +78,23 @@ def test_prioridade_branca_para_o_resto(valor):
 
 
 @pytest.mark.parametrize('valor,esperado', [
-    ('Exportacao', '[VERMELHA - Exportacao]'),
-    ('Pendencia Comercial', '[AMARELA]'),
-    ('MRP', '[BRANCA]'),
+    ('Exportacao', '[VERMELHA] Exportacao'),
+    ('Pendencia Comercial', '[AMARELA] Pendencia Comercial'),
+    ('Linha Pesada', '[BRANCA] Linha Pesada'),
+    ('MRP', '[BRANCA] MRP'),
+    ('Tryout', '[BRANCA] Tryout'),
 ])
-def test_rotulo_de_prioridade_exibido_no_pdf(valor, esperado):
+def test_rotulo_de_prioridade_mostra_classificacao_e_nome_real(valor, esperado):
     assert seq.rotulo_prioridade(valor) == esperado
+
+
+def test_rotulo_de_prioridade_sem_valor_mostra_traco():
+    assert seq.rotulo_prioridade(None) == '[BRANCA] —'
+
+
+def test_barra_de_setor_usa_grafite_com_acento_laranja():
+    assert seq.COR_BARRA_SETOR == '#1E293B'
+    assert seq.COR_ACENTO_SETOR == '#D97706'
 
 
 @pytest.mark.parametrize('valor,esperado', [

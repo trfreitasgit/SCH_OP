@@ -44,8 +44,9 @@ RANK_PRIORIDADE = {'VERMELHA': 0, 'AMARELA': 1, 'BRANCA': 2}
 
 PREENCHIMENTO_VISTO_OUTROS_SETORES = '[  ] ____________________'
 
-# Cores do documento (mesma família visual da planilha executiva).
-COR_BARRA_SETOR = '#1F3864'
+# Cores do documento: grafite industrial com acento laranja Schadek.
+COR_BARRA_SETOR = '#1E293B'
+COR_ACENTO_SETOR = '#D97706'
 COR_TEXTO_SETOR = '#FFFFFF'
 COR_GRADE = '#B0B7C3'
 COR_FUNDO_VERMELHA = '#FFE2E2'
@@ -70,7 +71,7 @@ CABECALHOS_TABELA = [
 ]
 
 # Larguras somam a área útil do A4 (595,28 - 2 * 30 = 535,28pt).
-LARGURAS_COLUNAS = [26.0, 66.0, 72.0, 55.0, 110.0, 206.28]
+LARGURAS_COLUNAS = [26.0, 66.0, 72.0, 55.0, 128.0, 188.28]
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -99,11 +100,10 @@ def classificar_prioridade(valor):
 
 
 def rotulo_prioridade(valor):
-    """Rótulo exibido na coluna Prioridade."""
+    """Rótulo exibido na coluna Prioridade: classificação + nome real."""
     lista = classificar_prioridade(valor)
-    if lista == 'VERMELHA':
-        return '[VERMELHA - %s]' % str(valor).strip()
-    return '[%s]' % lista
+    nome = str(valor).strip() if valor is not None else ''
+    return '[%s] %s' % (lista, nome or '—')
 
 
 def formatar_milhar(valor):
@@ -349,14 +349,22 @@ def _tabela_setor(ordens, estilos):
 
 
 def _barra_setor(texto, estilos, largura_total):
-    """Faixa destacada que abre o setor."""
+    """Faixa do setor: grafite com barra de acento laranja à esquerda."""
     from reportlab.lib import colors
     from reportlab.platypus import Paragraph, Table, TableStyle
 
-    barra = Table([[Paragraph(escape(texto), estilos['setor'])]], colWidths=[largura_total])
+    largura_acento = 5
+    barra = Table(
+        [['', Paragraph(escape(texto), estilos['setor'])]],
+        colWidths=[largura_acento, largura_total - largura_acento],
+    )
     barra.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(COR_BARRA_SETOR)),
-        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('BACKGROUND', (0, 0), (0, 0), colors.HexColor(COR_ACENTO_SETOR)),
+        ('BACKGROUND', (1, 0), (1, 0), colors.HexColor(COR_BARRA_SETOR)),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (0, 0), 0),
+        ('RIGHTPADDING', (0, 0), (0, 0), 0),
+        ('LEFTPADDING', (1, 0), (1, 0), 8),
         ('TOPPADDING', (0, 0), (-1, -1), 5),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
     ]))
