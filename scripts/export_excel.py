@@ -2,9 +2,14 @@
 # -*- coding: utf-8 -*-
 """Gera a planilha executiva (.xlsx) das ordens de produção selecionadas.
 
-Chamado pelo server.js (POST /ordens/export) assim:
+Dois caminhos de entrada:
 
-    python scripts/export_excel.py --ids "1,2,3"
+    python scripts/export_excel.py                  # linhas em JSON no stdin
+    python scripts/export_excel.py --ids "1,2,3"    # consulta o Supabase (CLI/manual)
+
+O servidor usa o caminho stdin: ele já tem o cliente Supabase e manda as linhas
+prontas, o que evita importar o supabase-py e fazer uma chamada de rede dentro
+do Python (eram ~3,6 s por exportação).
 
 Contrato: a ULTIMA linha do stdout precisa ser o caminho do arquivo .xlsx
 gerado. Tudo que for aviso/erro vai para o stderr, porque o servidor lê apenas
@@ -12,6 +17,7 @@ a última linha do stdout para achar o arquivo e depois o remove.
 """
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -21,12 +27,6 @@ from datetime import date, datetime
 from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo
-
-import pandas as pd
-from dotenv import load_dotenv
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.utils import get_column_letter
 
 TABELA = 'ordens_producao'
 
@@ -45,6 +45,8 @@ COLUNAS = [
     ('turno', 'Turno'),
 ]
 
+ROTULOS = [rotulo for _, rotulo in COLUNAS]
+
 CAMPOS_DATA = ('data_abertura', 'dia_analise')
 CAMPOS_NUMERICOS = ('total_pecas',)
 
@@ -60,19 +62,22 @@ FORMATO_DATA_EXIBICAO = '%d/%m/%Y'
 LARGURA_MAXIMA_COLUNA = 60
 PADDING_LARGURA = 2
 
-COR_HEADER = 'FF1F3864'  # azul escuro (ARGB, igual ao usado no dashboard)
+# ARGB, igual ao usado no dashboard.
+COR_HEADER = 'FF1F3864'
 COR_TEXTO_HEADER = 'FFFFFFFF'
-BORDA_FINA = Side(style='thin', color='FFB0B7C3')
+COR_BORDA = 'FFB0B7C3'
 
 RAIZ = Path(__file__).resolve().parents[1]
 
 
 # ---------------------------------------------------------------------------
-# Entrada / conexão
+# Entrada
 # ---------------------------------------------------------------------------
 
 def carregar_env():
     """Carrega o .env da raiz do projeto (mesmo arquivo usado pelo server.js)."""
+    from dotenv import load_dotenv
+
     load_dotenv(RAIZ / '.env', override=False)
 
 
@@ -98,8 +103,45 @@ def parse_ids(texto):
     return ids
 
 
+def ler_entrada_stdin(texto):
+    """Lê o payload JSON que o servidor manda no stdin.
+
+    Formato: {"ids": [1, 2], "ordens": [{...}, {...}]}
+    Retorna (ids, registros).
+    """
+    if texto is None or str(texto).strip() == '':
+        raise ValueError('nenhuma ordem recebida no stdin')
+
+    try:
+        payload = json.loads(texto)
+    except (TypeError, ValueError) as erro:
+        raise ValueError('payload do stdin não é um JSON válido: %s' % erro) from erro
+
+    if not isinstance(payload, dict):
+        raise ValueError('o payload do stdin deve ser um objeto JSON')
+
+    registros = payload.get('ordens')
+    if not isinstance(registros, list):
+        raise ValueError('o payload do stdin precisa trazer a lista "ordens"')
+
+    ids = payload.get('ids')
+    if ids is None:
+        ids = [registro.get('id') for registro in registros if isinstance(registro, dict)]
+    if not isinstance(ids, list):
+        raise ValueError('o campo "ids" do payload precisa ser uma lista')
+
+    ids_limpos = []
+    for identificador in ids:
+        try:
+            ids_limpos.append(int(identificador))
+        except (TypeError, ValueError):
+            continue
+
+    return ids_limpos, [registro for registro in registros if isinstance(registro, dict)]
+
+
 def criar_cliente():
-    """Cria o cliente Supabase a partir das variáveis de ambiente."""
+    """Cria o cliente Supabase a partir das variáveis de ambiente (caminho --ids)."""
     from supabase import create_client
 
     url = os.getenv('SUPABASE_URL_ORDENS') or os.getenv('SUPABASE_URL')
@@ -230,10 +272,11 @@ def valor_coluna(campo, registro):
     return formatar_valor(campo, registro.get(campo))
 
 
-def montar_dataframe(registros, ids):
-    """Monta o DataFrame na ordem dos IDs recebidos.
+def montar_linhas(registros, ids):
+    """Monta as linhas na ordem dos IDs recebidos.
 
-    Retorna (dataframe, ids_que_nao_existem_no_banco).
+    Retorna (linhas, ids_que_nao_existem_no_banco). Cada linha é um dict com os
+    rótulos da planilha; não usa pandas (era ~1,3 s de import para montar isso).
     """
     por_id = {}
     for linha in registros:
@@ -249,30 +292,27 @@ def montar_dataframe(registros, ids):
         if registro is None:
             faltantes.append(identificador)
             continue
-        linhas.append({
-            rotulo: valor_coluna(campo, registro)
-            for campo, rotulo in COLUNAS
-        })
+        linhas.append({campo_rotulo: valor_coluna(campo, registro) for campo, campo_rotulo in COLUNAS})
 
-    return pd.DataFrame(linhas, columns=[rotulo for _, rotulo in COLUNAS]), faltantes
+    return linhas, faltantes
 
 
 # ---------------------------------------------------------------------------
 # Estilização e gravação
 # ---------------------------------------------------------------------------
 
-def escrever_planilha(dataframe, destino):
+def escrever_planilha(linhas, destino):
     """Grava o .xlsx estilizado em `destino` e retorna o caminho."""
+    from openpyxl import Workbook
+    from openpyxl.utils import get_column_letter
+
     planilha = Workbook()
     aba = planilha.active
     aba.title = 'Ordens'
 
-    aba.append([rotulo for _, rotulo in COLUNAS])
-    for _, linha in dataframe.iterrows():
-        aba.append([
-            linha[rotulo] if linha[rotulo] != '' else None
-            for _, rotulo in COLUNAS
-        ])
+    aba.append(ROTULOS)
+    for linha in linhas:
+        aba.append([linha[rotulo] if linha[rotulo] != '' else None for rotulo in ROTULOS])
 
     ultima_linha = max(aba.max_row, 1)
     ultima_coluna = get_column_letter(len(COLUNAS))
@@ -281,7 +321,7 @@ def escrever_planilha(dataframe, destino):
     aba.auto_filter.ref = 'A1:%s%d' % (ultima_coluna, ultima_linha)
     aba.freeze_panes = 'A2'
     _aplicar_bordas(aba, ultima_linha)
-    _ajustar_larguras(aba, dataframe)
+    _ajustar_larguras(aba, linhas)
 
     planilha.save(destino)
     return destino
@@ -289,28 +329,41 @@ def escrever_planilha(dataframe, destino):
 
 def _estilizar_header(aba):
     """Fundo azul escuro, texto branco, negrito e centralizado na linha 1."""
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    preenchimento = PatternFill(fill_type='solid', fgColor=COR_HEADER)
+    fonte = Font(bold=True, color=COR_TEXTO_HEADER)
+    alinhamento = Alignment(horizontal='center', vertical='center')
+
     for celula in aba[1]:
-        celula.fill = PatternFill(fill_type='solid', fgColor=COR_HEADER)
-        celula.font = Font(bold=True, color=COR_TEXTO_HEADER)
-        celula.alignment = Alignment(horizontal='center', vertical='center')
+        celula.fill = preenchimento
+        celula.font = fonte
+        celula.alignment = alinhamento
     aba.row_dimensions[1].height = 22
 
 
 def _aplicar_bordas(aba, ultima_linha):
     """Borda fina em todas as células preenchidas (header + dados)."""
-    borda = Border(left=BORDA_FINA, right=BORDA_FINA, top=BORDA_FINA, bottom=BORDA_FINA)
+    from openpyxl.styles import Border, Side
+
+    lado = Side(style='thin', color=COR_BORDA)
+    borda = Border(left=lado, right=lado, top=lado, bottom=lado)
+
     for linha in aba.iter_rows(min_row=1, max_row=ultima_linha, max_col=len(COLUNAS)):
         for celula in linha:
             celula.border = borda
 
 
-def _ajustar_larguras(aba, dataframe):
+def _ajustar_larguras(aba, linhas):
     """Auto-fit: largura pelo maior conteúdo da coluna, com um teto."""
-    for indice, (_, rotulo) in enumerate(COLUNAS, start=1):
-        valores = [rotulo]
-        if rotulo in dataframe.columns:
-            valores += [str(valor).strip() for valor in dataframe[rotulo].tolist() if valor != '']
-        maior = max(len(valor) for valor in valores)
+    from openpyxl.utils import get_column_letter
+
+    for indice, rotulo in enumerate(ROTULOS, start=1):
+        maior = len(rotulo)
+        for linha in linhas:
+            valor = str(linha.get(rotulo, '')).strip()
+            if valor and len(valor) > maior:
+                maior = len(valor)
         aba.column_dimensions[get_column_letter(indice)].width = min(
             LARGURA_MAXIMA_COLUNA, maior + PADDING_LARGURA
         )
@@ -320,11 +373,25 @@ def _ajustar_larguras(aba, dataframe):
 # CLI
 # ---------------------------------------------------------------------------
 
-def main(argv=None, cliente=None, diretorio=None):
+def _ler_stdin(stdin):
+    """Lê todo o stdin como texto (UTF-8). Sem `stdin`, usa o stdin do processo."""
+    if stdin is None:
+        stdin = sys.stdin
+    if stdin is None:
+        return ''
+    if hasattr(stdin, 'read'):
+        return stdin.read()
+    return str(stdin)
+
+
+def main(argv=None, cliente=None, diretorio=None, stdin=None):
     parser = argparse.ArgumentParser(
         description='Gera a planilha executiva (.xlsx) das ordens de produção.'
     )
-    parser.add_argument('--ids', required=True, help='IDs separados por vírgula. Ex.: "1,2,3"')
+    parser.add_argument(
+        '--ids',
+        help='IDs separados por vírgula (consulta o banco). Sem --ids, lê o JSON do stdin.',
+    )
 
     try:
         argumentos = parser.parse_args(argv)
@@ -332,16 +399,19 @@ def main(argv=None, cliente=None, diretorio=None):
         return int(saida.code or 2)
 
     try:
-        ids = parse_ids(argumentos.ids)
-    except ValueError as erro:
-        print('Erro: %s' % erro, file=sys.stderr)
-        return 1
+        if argumentos.ids is not None:
+            ids = parse_ids(argumentos.ids)
+            carregar_env()
+            registros = buscar_ordens(cliente or criar_cliente(), ids)
+        else:
+            ids, registros = ler_entrada_stdin(_ler_stdin(stdin))
 
-    try:
-        carregar_env()
-        cliente = cliente or criar_cliente()
-        registros = buscar_ordens(cliente, ids)
-        dataframe, faltantes = montar_dataframe(registros, ids)
+        if not registros:
+            raise ValueError(
+                'nenhuma ordem encontrada para exportar (%d id(s) informado(s))' % len(ids)
+            )
+
+        linhas, faltantes = montar_linhas(registros, ids)
 
         if faltantes:
             print(
@@ -354,7 +424,7 @@ def main(argv=None, cliente=None, diretorio=None):
             diretorio or tempfile.gettempdir(),
             'ordens_export_%s.xlsx' % uuid.uuid4().hex[:12],
         )
-        escrever_planilha(dataframe, destino)
+        escrever_planilha(linhas, destino)
     except Exception as erro:  # noqa: BLE001 - qualquer falha vira erro de exportação
         print('Erro na exportação da planilha: %s' % erro, file=sys.stderr)
         return 1
@@ -365,9 +435,9 @@ def main(argv=None, cliente=None, diretorio=None):
 
 if __name__ == '__main__':
     # O server.js lê o stdout como UTF-8; garante o mesmo encoding no Windows.
-    try:
-        sys.stdout.reconfigure(encoding='utf-8')
-        sys.stderr.reconfigure(encoding='utf-8')
-    except (AttributeError, ValueError):
-        pass
+    for fluxo in (sys.stdout, sys.stderr, sys.stdin):
+        try:
+            fluxo.reconfigure(encoding='utf-8')
+        except (AttributeError, ValueError):
+            pass
     sys.exit(main())

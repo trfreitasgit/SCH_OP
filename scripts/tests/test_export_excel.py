@@ -1,11 +1,17 @@
 """Testes do gerador de planilhas scripts/export_excel.py.
 
-Contrato com o server.js:
-  python scripts/export_excel.py --ids "1,2,3"
-  -> a ULTIMA linha do stdout deve ser o caminho de um .xlsx existente.
+Contrato com o server.js (dois caminhos):
+
+  python scripts/export_excel.py            # linhas em JSON no stdin (usado pelo servidor)
+  python scripts/export_excel.py --ids "1,2,3"   # consulta o banco (uso manual/CLI)
+
+Nos dois casos a ULTIMA linha do stdout deve ser o caminho de um .xlsx existente.
 """
 
+import io
+import json
 import os
+import sys
 from datetime import date
 
 import openpyxl
@@ -114,62 +120,61 @@ def test_buscar_ordens_sem_ids_nao_consulta_o_banco():
 
 
 # ---------------------------------------------------------------------------
-# montar_dataframe
+# montar_linhas (sem pandas: lista de dicts pronta para o openpyxl)
 # ---------------------------------------------------------------------------
 
-def test_dataframe_usa_os_cabecalhos_na_ordem_definida():
-    df, _ = ex.montar_dataframe([registro()], [5])
+def test_linhas_usam_os_cabecalhos_na_ordem_definida():
+    linhas, _ = ex.montar_linhas([registro()], [5])
 
-    assert list(df.columns) == COLUNAS_ESPERADAS
+    assert list(linhas[0].keys()) == COLUNAS_ESPERADAS
 
 
-def test_dataframe_respeita_a_ordem_dos_ids_recebidos():
+def test_linhas_respeitam_a_ordem_dos_ids_recebidos():
     registros = [registro(9, numero_op='1132682'), registro(5, numero_op='1132688')]
 
-    df, _ = ex.montar_dataframe(registros, [5, 9])
+    linhas, _ = ex.montar_linhas(registros, [5, 9])
 
-    assert list(df['OP']) == ['1132688', '1132682']
-
-
-def test_dataframe_formata_datas_como_dd_mm_aaaa():
-    df, _ = ex.montar_dataframe([registro(data_abertura='2026-10-16',
-                                          dia_analise='2026-01-02')], [5])
-
-    assert df.loc[0, 'Data Abertura'] == '16/10/2026'
-    assert df.loc[0, 'Dia Análise'] == '02/01/2026'
+    assert [linha['OP'] for linha in linhas] == ['1132688', '1132682']
 
 
-def test_dataframe_aceita_datas_como_objeto_date():
-    df, _ = ex.montar_dataframe([registro(data_abertura=date(2026, 10, 16))], [5])
+def test_linhas_formatam_datas_como_dd_mm_aaaa():
+    linhas, _ = ex.montar_linhas([registro(data_abertura='2026-10-16',
+                                            dia_analise='2026-01-02')], [5])
 
-    assert df.loc[0, 'Data Abertura'] == '16/10/2026'
-
-
-def test_dataframe_deixa_campos_nulos_como_celula_vazia():
-    df, _ = ex.montar_dataframe([registro(observacao=None, dia_analise=None)], [5])
-
-    assert df.loc[0, 'Observação'] == ''
-    assert df.loc[0, 'Dia Análise'] == ''
+    assert linhas[0]['Data Abertura'] == '16/10/2026'
+    assert linhas[0]['Dia Análise'] == '02/01/2026'
 
 
-def test_dataframe_mantem_total_de_pecas_como_numero():
-    df, _ = ex.montar_dataframe([registro(total_pecas=1250)], [5])
+def test_linhas_aceitam_datas_como_objeto_date():
+    linhas, _ = ex.montar_linhas([registro(data_abertura=date(2026, 10, 16))], [5])
 
-    assert df.loc[0, 'Peças'] == 1250
+    assert linhas[0]['Data Abertura'] == '16/10/2026'
 
 
-def test_dataframe_reporta_ids_que_nao_existem_no_banco():
-    df, faltantes = ex.montar_dataframe([registro(5)], [5, 99, 123])
+def test_linhas_deixam_campos_nulos_como_celula_vazia():
+    linhas, _ = ex.montar_linhas([registro(observacao=None, dia_analise=None)], [5])
+
+    assert linhas[0]['Observação'] == ''
+    assert linhas[0]['Dia Análise'] == ''
+
+
+def test_linhas_mantem_total_de_pecas_como_numero():
+    linhas, _ = ex.montar_linhas([registro(total_pecas=1250)], [5])
+
+    assert linhas[0]['Peças'] == 1250
+
+
+def test_linhas_reportam_ids_que_nao_existem_no_banco():
+    linhas, faltantes = ex.montar_linhas([registro(5)], [5, 99, 123])
 
     assert faltantes == [99, 123]
-    assert len(df) == 1
+    assert len(linhas) == 1
 
 
-def test_dataframe_com_nenhum_registro_retorna_planilha_so_com_cabecalho():
-    df, faltantes = ex.montar_dataframe([], [7, 8])
+def test_linhas_sem_registro_retornam_lista_vazia():
+    linhas, faltantes = ex.montar_linhas([], [7, 8])
 
-    assert list(df.columns) == COLUNAS_ESPERADAS
-    assert len(df) == 0
+    assert linhas == []
     assert faltantes == [7, 8]
 
 
@@ -211,25 +216,25 @@ def test_classificar_turno_sem_data_valida_e_nulo(valor):
     assert ex.classificar_turno(valor) is None
 
 
-def test_dataframe_inclui_a_coluna_turno_depois_do_dia_analise():
-    df, _ = ex.montar_dataframe([registro(dia_analise='2026-10-16T14:00:00-03:00')], [5])
+def test_linhas_incluem_a_coluna_turno_depois_do_dia_analise():
+    linhas, _ = ex.montar_linhas([registro(dia_analise='2026-10-16T14:00:00-03:00')], [5])
 
-    assert list(df.columns)[-1] == 'Turno'
-    assert df.loc[0, 'Turno'] == 'T2'
+    assert list(linhas[0].keys())[-1] == 'Turno'
+    assert linhas[0]['Turno'] == 'T2'
 
 
-def test_dataframe_deixa_turno_vazio_quando_a_ordem_nao_foi_paga():
-    df, _ = ex.montar_dataframe([registro(dia_analise=None)], [5])
+def test_linhas_deixam_turno_vazio_quando_a_ordem_nao_foi_paga():
+    linhas, _ = ex.montar_linhas([registro(dia_analise=None)], [5])
 
-    assert df.loc[0, 'Turno'] == ''
+    assert linhas[0]['Turno'] == ''
 
 
 def test_dia_analise_usa_a_data_da_fabrica_e_nao_a_data_utc():
     # 2026-10-17T01:30Z = 16/10 22:30 em Sao Paulo
-    df, _ = ex.montar_dataframe([registro(dia_analise='2026-10-17T01:30:00+00:00')], [5])
+    linhas, _ = ex.montar_linhas([registro(dia_analise='2026-10-17T01:30:00+00:00')], [5])
 
-    assert df.loc[0, 'Dia Análise'] == '16/10/2026'
-    assert df.loc[0, 'Turno'] == 'T3'
+    assert linhas[0]['Dia Análise'] == '16/10/2026'
+    assert linhas[0]['Turno'] == 'T3'
 
 
 # ---------------------------------------------------------------------------
@@ -237,8 +242,8 @@ def test_dia_analise_usa_a_data_da_fabrica_e_nao_a_data_utc():
 # ---------------------------------------------------------------------------
 
 def planilha_de_teste(destino, registros=None, ids=None):
-    df, faltantes = ex.montar_dataframe(registros or [registro()], ids or [5])
-    ex.escrever_planilha(df, destino)
+    linhas, faltantes = ex.montar_linhas(registros or [registro()], ids or [5])
+    ex.escrever_planilha(linhas, destino)
     return destino, faltantes
 
 
@@ -325,7 +330,7 @@ def test_largura_da_coluna_turno_acompanha_o_cabecalho(tmp_path):
 
 
 def test_planilha_com_cabecalho_somente_tem_bordas_na_linha_1(tmp_path):
-    caminho = ex.escrever_planilha(ex.montar_dataframe([], [7])[0], str(tmp_path / 'vazio.xlsx'))
+    caminho = ex.escrever_planilha(ex.montar_linhas([], [7])[0], str(tmp_path / 'vazio.xlsx'))
 
     ws = openpyxl.load_workbook(caminho).active
 
@@ -387,6 +392,87 @@ def test_main_carrega_o_env_antes_de_criar_o_cliente(tmp_path, monkeypatch, caps
 
     assert codigo == 0
     assert ordem_das_chamadas == ['env', 'cliente']
+
+
+# ---------------------------------------------------------------------------
+# Entrada via stdin: o server.js consulta o Supabase e manda as linhas em JSON,
+# evitando importar o supabase-py e a chamada de rede dentro do Python.
+# ---------------------------------------------------------------------------
+
+def payload(registros, ids=None):
+    ids = ids if ids is not None else [r['id'] for r in registros]
+    return json.dumps({'ids': ids, 'ordens': registros})
+
+
+def test_ler_entrada_stdin_le_ids_e_ordens():
+    entrada = payload([registro(5), registro(6)], [5, 6])
+
+    ids, registros = ex.ler_entrada_stdin(entrada)
+
+    assert ids == [5, 6]
+    assert [r['id'] for r in registros] == [5, 6]
+
+
+def test_ler_entrada_stdin_aceita_json_sem_ids():
+    entrada = json.dumps({'ordens': [registro(5)]})
+
+    ids, registros = ex.ler_entrada_stdin(entrada)
+
+    assert ids == [5]
+    assert len(registros) == 1
+
+
+@pytest.mark.parametrize('entrada', ['', '   ', 'nao-e-json', '[]', '{"ordens": "x"}'])
+def test_ler_entrada_stdin_rejeita_payload_invalido(entrada):
+    with pytest.raises(ValueError):
+        ex.ler_entrada_stdin(entrada)
+
+
+def test_main_usa_stdin_quando_nao_ha_ids_na_linha_de_comando(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(sys, 'stdin', io.StringIO(payload([registro(5), registro(6)], [6, 5])))
+
+    codigo = ex.main([], diretorio=str(tmp_path))
+
+    assert codigo == 0
+    caminho = capsys.readouterr().out.strip().splitlines()[-1]
+    ws = openpyxl.load_workbook(caminho).active
+    assert ws.max_row == 3
+    # Respeita a ordem dos ids que o servidor mandou (6 antes de 5).
+    assert [ws.cell(row=r, column=1).value for r in (2, 3)] == ['1132688', '1132688']
+
+
+def test_main_via_stdin_nao_carrega_env_nem_cria_cliente(tmp_path, monkeypatch):
+    def explode(*args, **kwargs):
+        raise AssertionError('o caminho stdin nao deve tocar no banco')
+
+    monkeypatch.setattr(ex, 'criar_cliente', explode)
+    monkeypatch.setattr(ex, 'carregar_env', explode)
+    monkeypatch.setattr(sys, 'stdin', io.StringIO(payload([registro(5)])))
+
+    assert ex.main([], diretorio=str(tmp_path)) == 0
+
+
+def test_main_via_stdin_nao_importa_pandas(tmp_path, monkeypatch):
+    """pandas era 1,3 s de startup e so montava uma lista de dicts."""
+    monkeypatch.setattr(sys, 'stdin', io.StringIO(payload([registro(5)])))
+    # Se alguem reintroduzir 'import pandas' no modulo, ele ja estara carregado.
+    import importlib
+    monkeypatch.delitem(sys.modules, 'pandas', raising=False)
+
+    codigo = ex.main([], diretorio=str(tmp_path))
+    importlib.import_module('export_excel')
+
+    assert codigo == 0
+    assert 'pandas' not in sys.modules
+
+
+def test_main_via_stdin_com_ordens_vazias_falha(tmp_path, capsys):
+    monkeypatch_stdin = io.StringIO(json.dumps({'ids': [7, 8], 'ordens': []}))
+
+    codigo = ex.main([], stdin=monkeypatch_stdin, diretorio=str(tmp_path))
+
+    assert codigo != 0
+    assert 'nenhuma ordem' in capsys.readouterr().err.lower()
 
 
 # ---------------------------------------------------------------------------
