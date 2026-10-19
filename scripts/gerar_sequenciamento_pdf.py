@@ -51,6 +51,11 @@ COR_ACENTO_SETOR = '#D97706'
 COR_TEXTO_SETOR = '#FFFFFF'
 COR_CABECALHO_TABELA = '#E2E8F0'
 COR_TEXTO_CABECALHO = '#0F172A'
+
+# Faixa grafite que cobre o topo da folha, atrás da logo e do título.
+COR_FAIXA_TOPO = COR_BARRA_SETOR
+COR_TEXTO_FAIXA = '#CBD5E1'
+ALTURA_FAIXA_TOPO = 112
 COR_GRADE = '#B0B7C3'
 COR_FUNDO_VERMELHA = '#FFE2E2'
 COR_FUNDO_AMARELA = '#FFF3BF'
@@ -61,7 +66,6 @@ TITULO = 'SCHADEK — SEQUENCIAMENTO DE PRODUÇÃO'
 
 # A4 retrato, margens de 30pt (~1,06 cm).
 MARGEM_LATERAL = 30
-MARGEM_SUPERIOR = 28
 MARGEM_INFERIOR = 30
 
 CABECALHOS_TABELA = [
@@ -265,15 +269,18 @@ def _estilos():
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.enums import TA_LEFT, TA_CENTER
 
-    base = ParagraphStyle('base', fontName='Helvetica', fontSize=9, leading=11)
+    base = ParagraphStyle('base', fontName='Helvetica', fontSize=9, leading=11,
+                          alignment=TA_CENTER)
     return {
         'base': base,
         'titulo': ParagraphStyle('titulo', parent=base, fontName='Helvetica-Bold',
-                                 fontSize=16, leading=19, alignment=TA_CENTER),
+                                 fontSize=16, leading=19, alignment=TA_CENTER,
+                                 textColor=COR_TEXTO_SETOR),
         'emissao': ParagraphStyle('emissao', parent=base, fontSize=8.5, leading=10,
-                                  alignment=TA_CENTER, textColor='#4B5563'),
+                                  alignment=TA_CENTER, textColor=COR_TEXTO_FAIXA),
         'setor': ParagraphStyle('setor', parent=base, fontName='Helvetica-Bold',
-                                fontSize=11, leading=13, textColor=COR_TEXTO_SETOR),
+                                fontSize=11, leading=13, textColor=COR_TEXTO_SETOR,
+                                alignment=TA_LEFT),
         'header': ParagraphStyle('header', parent=base, fontName='Helvetica-Bold',
                                  fontSize=9, leading=11, alignment=TA_CENTER,
                                  textColor=COR_TEXTO_CABECALHO),
@@ -283,7 +290,8 @@ def _estilos():
                                    alignment=TA_CENTER),
         'qtd': ParagraphStyle('qtd', parent=base, fontSize=10.5, leading=12,
                               alignment=TA_CENTER),
-        'prioridade': ParagraphStyle('prioridade', parent=base, fontSize=8.5, leading=10.5),
+        'prioridade': ParagraphStyle('prioridade', parent=base, fontSize=8.5, leading=10.5,
+                                     alignment=TA_LEFT),
         'obs': ParagraphStyle('obs', parent=base, fontSize=8, leading=10, alignment=TA_LEFT),
     }
 
@@ -377,47 +385,58 @@ def _barra_setor(texto, estilos, largura_total):
     return barra
 
 
-def _cabecalho_geral(estilos, emitido_em, largura_total):
-    """Logo à esquerda e título/data à direita (sem logo, só o texto)."""
-    from reportlab.platypus import Image, Paragraph, Table, TableStyle
+def _decoracao_pagina(emitido_em, estilos):
+    """Devolve o callback de página: faixa de topo com logo/título + rodapé."""
+    def desenhar(canvas, documento):
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
 
-    texto = [
-        Paragraph(TITULO, estilos['titulo']),
-        Paragraph('Emitido em %s · %s' % (emitido_em, FUSO_FABRICA), estilos['emissao']),
-    ]
+        largura, altura = A4
+        topo_da_faixa = altura - ALTURA_FAIXA_TOPO
+        estilo_titulo = estilos['titulo']
+        estilo_emissao = estilos['emissao']
 
-    if not os.path.exists(LOGO_PADRAO):
-        return texto
+        canvas.saveState()
+        canvas.setFillColor(colors.HexColor(COR_FAIXA_TOPO))
+        canvas.rect(0, topo_da_faixa, largura, ALTURA_FAIXA_TOPO, stroke=0, fill=1)
 
-    logo = Image(LOGO_PADRAO, width=LARGURA_LOGO, height=LARGURA_LOGO)
-    cabecalho = Table([[logo, texto]], colWidths=[LARGURA_LOGO + 12, largura_total - LARGURA_LOGO - 12])
-    cabecalho.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ]))
-    return [cabecalho]
+        x_texto = MARGEM_LATERAL
+        if os.path.exists(LOGO_PADRAO):
+            canvas.drawImage(
+                LOGO_PADRAO,
+                MARGEM_LATERAL,
+                topo_da_faixa + (ALTURA_FAIXA_TOPO - LARGURA_LOGO) / 2,
+                width=LARGURA_LOGO,
+                height=LARGURA_LOGO,
+                mask='auto',
+            )
+            x_texto = MARGEM_LATERAL + LARGURA_LOGO + 16
 
+        centro = x_texto + (largura - x_texto - MARGEM_LATERAL) / 2
+        canvas.setFillColor(colors.HexColor(estilo_titulo.textColor))
+        canvas.setFont(estilo_titulo.fontName, estilo_titulo.fontSize)
+        canvas.drawCentredString(centro, altura - ALTURA_FAIXA_TOPO / 2 + 6, TITULO)
+        canvas.setFont(estilo_emissao.fontName, estilo_emissao.fontSize)
+        canvas.setFillColor(colors.HexColor(estilo_emissao.textColor))
+        canvas.drawCentredString(
+            centro,
+            altura - ALTURA_FAIXA_TOPO / 2 - 12,
+            'Emitido em %s · %s' % (emitido_em, FUSO_FABRICA),
+        )
 
-def _rodape(canvas, documento):
-    """Rodapé discreto com numeração de páginas."""
-    from reportlab.lib.pagesizes import A4
+        canvas.setFont('Helvetica', 7)
+        canvas.setFillColorRGB(0.42, 0.45, 0.50)
+        canvas.drawString(MARGEM_LATERAL, 15, 'Schadek — Sequenciamento de Produção')
+        canvas.drawRightString(largura - MARGEM_LATERAL, 15, 'Página %d' % documento.page)
+        canvas.restoreState()
 
-    canvas.saveState()
-    canvas.setFont('Helvetica', 7)
-    canvas.setFillColorRGB(0.42, 0.45, 0.50)
-    canvas.drawString(MARGEM_LATERAL, 15, 'Schadek — Sequenciamento de Produção')
-    canvas.drawRightString(A4[0] - MARGEM_LATERAL, 15, 'Página %d' % documento.page)
-    canvas.restoreState()
+    return desenhar
 
 
 def gerar_pdf(ordens, destino, setores_selecionados=None):
     """Gera o PDF em `destino` e retorna o caminho."""
-    from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+    from reportlab.platypus import SimpleDocTemplate, Spacer
 
     grupos = agrupar_ordens(ordens, setores_selecionados)
     if not grupos:
@@ -428,9 +447,7 @@ def gerar_pdf(ordens, destino, setores_selecionados=None):
 
     largura_total = A4[0] - 2 * MARGEM_LATERAL
 
-    historia = _cabecalho_geral(estilos, emitido_em, largura_total)
-    historia.append(Spacer(1, 10))
-
+    historia = []
     for setor, ordens_setor in grupos:
         historia.append(_barra_setor(cabecalho_setor(setor, ordens_setor), estilos, largura_total))
         historia.append(_tabela_setor(ordens_setor, estilos))
@@ -441,12 +458,13 @@ def gerar_pdf(ordens, destino, setores_selecionados=None):
         pagesize=A4,
         leftMargin=MARGEM_LATERAL,
         rightMargin=MARGEM_LATERAL,
-        topMargin=MARGEM_SUPERIOR,
+        topMargin=ALTURA_FAIXA_TOPO + 12,
         bottomMargin=MARGEM_INFERIOR,
         title='Sequenciamento de Produção',
         author='Schadek',
     )
-    documento.build(historia, onFirstPage=_rodape, onLaterPages=_rodape)
+    decoracao = _decoracao_pagina(emitido_em, estilos)
+    documento.build(historia, onFirstPage=decoracao, onLaterPages=decoracao)
     return destino
 
 

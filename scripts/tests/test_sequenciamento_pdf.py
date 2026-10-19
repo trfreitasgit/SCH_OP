@@ -373,6 +373,45 @@ def test_coluna_prioridade_comporta_o_rotulo_mais_longo():
         assert stringWidth(rotulo, estilo.fontName, estilo.fontSize) <= largura_util
 
 
+def test_coluna_seq_centralizada():
+    from reportlab.lib.enums import TA_CENTER
+
+    assert seq._estilos()['base'].alignment == TA_CENTER
+
+
+def test_faixa_de_setor_e_prioridade_seguem_a_esquerda():
+    from reportlab.lib.enums import TA_LEFT
+
+    estilos = seq._estilos()
+
+    assert estilos['setor'].alignment == TA_LEFT
+    assert estilos['prioridade'].alignment == TA_LEFT
+    assert estilos['obs'].alignment == TA_LEFT
+
+
+def test_titulo_e_branco_sobre_a_faixa_de_topo():
+    assert seq.COR_FAIXA_TOPO == seq.COR_BARRA_SETOR == '#1E293B'
+    assert str(seq._estilos()['titulo'].textColor).upper() == '#FFFFFF'
+    assert seq.ALTURA_FAIXA_TOPO >= seq.LARGURA_LOGO
+
+
+def test_faixa_de_topo_cobre_a_largura_total_da_folha(tmp_path):
+    from reportlab.lib.pagesizes import A4
+
+    pagina = pypdf.PdfReader(gerar(tmp_path, [ordem()])).pages[0]
+    conteudo = pagina.get_contents().get_data().decode('latin-1')
+
+    # Retângulo preenchido em grafite (0.1176 0.1608 0.2314 = #1E293B).
+    desenhado = re.search(r'0 ([\d.]+) ([\d.]+) ([\d.]+) re', conteudo)
+    assert desenhado, 'faixa de topo não desenhada'
+
+    inicio_y, largura, altura = (float(grupo) for grupo in desenhado.groups())
+    assert abs(largura - A4[0]) < 0.1
+    assert abs(altura - seq.ALTURA_FAIXA_TOPO) < 0.1
+    assert abs(inicio_y - (A4[1] - seq.ALTURA_FAIXA_TOPO)) < 0.1
+    assert '.117647 .160784 .231373 rg' in conteudo
+
+
 def test_pdf_inclui_o_logo_da_schadek(tmp_path):
     assert os.path.exists(seq.LOGO_PADRAO)
     assert seq.LARGURA_LOGO == 100
