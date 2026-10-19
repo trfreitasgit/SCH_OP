@@ -941,7 +941,7 @@ document.getElementById('btnTodos').addEventListener('click', function () {
 });
 
 // ==========================================================================
-// SEQUENCIAMENTO DE PRODUCAO EM PDF (modal de selecao de setores)
+// SEQUENCIAMENTO DE ORDENS EM PDF (modal de selecao de setores)
 // --------------------------------------------------------------------------
 // Endpoint: POST /ordens/sequenciamento/pdf -> Blob application/pdf (inline)
 // Body: { setores_selecionados: [...] }  (opcional; vazio/ausente = todos)
@@ -1081,7 +1081,7 @@ async function gerarPdfSequenciamento() {
         setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
 
         fecharModalSequenciamento();
-        mostrarToast('Sequenciamento gerado', setores.length + ' setor(es) incluído(s) no PDF.');
+        mostrarToast('Sequenciamento de Ordens', setores.length + ' setor(es) incluído(s) no PDF.');
     } catch (erro) {
         if (janelaPdf) janelaPdf.close();
         console.error('Erro ao gerar o sequenciamento:', erro);

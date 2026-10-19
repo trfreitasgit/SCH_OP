@@ -182,10 +182,10 @@
                         <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
                         <span id="btnExportarExcelLabel">Exportar para Excel</span>
                     </button>
-                    <!-- SEQUENCIAMENTO DE PRODUCAO: abre o modal de selecao de setores.
+                    <!-- SEQUENCIAMENTO DE ORDENS: abre o modal de selecao de setores.
                          O PDF e gerado pelo endpoint POST /ordens/sequenciamento/pdf. -->
                     <button id="btn-imprimir-sequenciamento" class="btn-sequenciamento" type="button"
-                        title="Gerar o PDF de sequenciamento de produção dos setores escolhidos">
+                        title="Gerar o PDF de sequenciamento de ordens dos setores escolhidos">
                         <span class="material-symbols-outlined" style="font-size: 18px;">print</span>
                         <span>Sequenciamento</span>
                     </button>
@@ -811,7 +811,7 @@
     </aside>
 
     <!-- ==================================================================
-         MODAL: SEQUENCIAMENTO DE PRODUCAO (selecao de setores)
+         MODAL: SEQUENCIAMENTO DE ORDENS (selecao de setores)
          Overlay proprio (nao usa o filter-drawer). A logica esta em ordens.js
          (regra do projeto: nenhum <script> inline novo).
          Os valores dos checkboxes sao os mesmos data-setor das abas e o mesmo
@@ -824,7 +824,7 @@
                 <div class="modal-title-group">
                     <span class="modal-accent-bar"></span>
                     <div>
-                        <h2 class="modal-title" id="titulo-sequenciamento">Imprimir Sequenciamento de Produção</h2>
+                        <h2 class="modal-title" id="titulo-sequenciamento">Imprimir Sequenciamento de Ordens</h2>
                         <span class="modal-subtitle" id="subtitulo-sequenciamento">Selecione os setores que deseja incluir no documento:</span>
                     </div>
                 </div>

@@ -83,15 +83,15 @@
   --status-slate-border: rgba(148, 163, 184, 0.3);
 
   /* Turnos da coluna TURNO (T1 verde / T2 azul / T3 roxo) */
-  --turno-t1: #10b981;
-  --turno-t1-bg: rgba(16, 185, 129, 0.14);
-  --turno-t1-border: rgba(16, 185, 129, 0.3);
-  --turno-t2: #38bdf8;
-  --turno-t2-bg: rgba(56, 189, 248, 0.14);
-  --turno-t2-border: rgba(56, 189, 248, 0.3);
-  --turno-t3: #a78bfa;
-  --turno-t3-bg: rgba(167, 139, 250, 0.14);
-  --turno-t3-border: rgba(167, 139, 250, 0.3);
+  --turno-t1: rgb(0, 162, 255);
+  --turno-t1-bg: rgba(0, 162, 255, 0.14);
+  --turno-t1-border: rgba(0, 162, 255, 0.3);
+  --turno-t2: rgb(253, 0, 253);
+  --turno-t2-bg: rgba(253, 0, 253, 0.14);
+  --turno-t2-border: rgba(136, 4, 107, 0.3);
+  --turno-t3: rgb(255, 115, 0);
+  --turno-t3-bg: rgba(255, 115, 0, 0.14);
+  --turno-t3-border: rgba(216, 115, 0, 0.3);
 
   /* Legacy aliases for backward compatibility */
   --bg-canvas: var(--canvas);
@@ -3317,7 +3317,7 @@ html:not(.dark) .filter-footer {
 .app-footer { text-align: center; padding: 20px 0; font-family: var(--font-mono); font-size: 11px; color: var(--text-subtle); opacity: 0.6; transition: var(--transition); } .app-footer:hover { opacity: 1; color: var(--primary); }
 
 /* ==========================================================================
-   SEQUENCIAMENTO DE PRODUCAO - BOTAO + MODAL DE SELECAO DE SETORES
+   SEQUENCIAMENTO DE ORDENS - BOTAO + MODAL DE SELECAO DE SETORES
    Identidade: superficie do app + acento terciario (Electric Cyan) no botao e
    na barra do titulo. O estado "setor marcado" segue exatamente o padrao dos
    cards de setor do filtro lateral (--primary), para a mesma acao ter o mesmo
