@@ -1035,15 +1035,25 @@ document.getElementById('btnTodos').addEventListener('click', function () {
 });
 
 // ==========================================================================
-// SEQUENCIAMENTO DE ORDENS EM PDF (modal de selecao de setores)
+// SEQUENCIAMENTO DE ORDENS EM PDF (modal em 2 etapas)
 // --------------------------------------------------------------------------
+// Etapa 1: escolha dos setores. Etapa 2: ordens pendentes desses setores - todas
+// marcadas - onde o usuario desmarca o que NAO deve entrar no PDF.
 // Endpoint: POST /ordens/sequenciamento/pdf -> Blob application/pdf (inline)
-// Body: { setores_selecionados: [...] }  (opcional; vazio/ausente = todos)
-// Os valores seguem o vocabulario de setor do banco e das abas - 'Celula'
-// sem acento (o rotulo na tela e "Célula").
+// Body: { setores_selecionados: [...], ordens_selecionadas: [ids...] }
+// Os valores de setor seguem o vocabulario do banco e das abas - 'Celula' sem
+// acento (o rotulo na tela e "Célula").
 // ==========================================================================
 var SETORES_SEQUENCIAMENTO = ['Montagem', 'Subconjunto', 'BCM', 'Celula', 'Importada', 'Usinagem'];
 var SETORES_PADRAO_SEQUENCIAMENTO = ['Montagem', 'Subconjunto', 'BCM', 'Celula'];
+
+// Ordens que nao entram na folha: mesma regra de lib/sequenciamento-ordens.js.
+// A lista de /ordens/pendentes ja exclui 'Encerrado'; 'Pago' sai aqui porque
+// aquela rota tambem lista ordens pagas.
+var SITUACOES_FORA_SEQUENCIAMENTO = ['Pago', 'Encerrado'];
+
+var etapaSequenciamento = 'setores';   // 'setores' | 'ordens'
+var ordensSequenciamento = [];         // ordens da etapa 2 (todas marcadas ao abrir)
 
 function obterModalSequenciamento() {
     return document.getElementById('modal-sequenciamento');
@@ -1085,6 +1095,184 @@ function esconderAvisoSequenciamento() {
     if (aviso) aviso.classList.add('hidden');
 }
 
+// --------------------------------------------------------------------------
+// ETAPA 2: lista de ordens
+// --------------------------------------------------------------------------
+function obterCheckboxesOrdensSequenciamento() {
+    return document.querySelectorAll('#corpo-seq-ordens .seq-ordem-checkbox');
+}
+
+// Troca o conteudo do modal entre "setores" e "ordens" (chip, subtitulo, botoes,
+// largura do card e foco). Nao busca nada nem fecha: so a apresentacao do passo.
+function definirEtapaSequenciamento(etapa) {
+    var nova = etapa === 'ordens' ? 'ordens' : 'setores';
+    etapaSequenciamento = nova;
+
+    var passoSetores = document.getElementById('seq-etapa-setores');
+    var passoOrdens = document.getElementById('seq-etapa-ordens');
+    if (passoSetores) passoSetores.classList.toggle('hidden', nova !== 'setores');
+    if (passoOrdens) passoOrdens.classList.toggle('hidden', nova !== 'ordens');
+
+    // A tabela de ordens precisa de mais largura que a grade de setores.
+    var card = document.getElementById('card-sequenciamento');
+    if (card) card.classList.toggle('seq-card-ordens', nova === 'ordens');
+
+    var chip = document.getElementById('seq-etapa-chip');
+    var subtitulo = document.getElementById('subtitulo-sequenciamento');
+    var rotulo = document.getElementById('btn-confirmar-sequenciamento-label');
+    var icone = document.getElementById('btn-confirmar-sequenciamento-icone');
+    var botao = document.getElementById('btn-confirmar-sequenciamento');
+    var cancelar = document.getElementById('btn-cancelar-sequenciamento');
+    var voltar = document.getElementById('btn-voltar-sequenciamento');
+
+    if (chip) chip.textContent = nova === 'ordens' ? 'Etapa 2 de 2' : 'Etapa 1 de 2';
+    if (subtitulo) {
+        subtitulo.textContent = nova === 'ordens'
+            ? 'Desmarque as ordens que não devem entrar no PDF:'
+            : 'Selecione os setores que deseja incluir no documento:';
+    }
+    if (rotulo) rotulo.textContent = nova === 'ordens' ? 'Gerar PDF' : 'Buscar Ordens';
+    if (icone) icone.textContent = nova === 'ordens' ? 'print' : 'search';
+    if (botao) botao.disabled = false;
+    if (cancelar) cancelar.classList.toggle('hidden', nova === 'ordens');
+    if (voltar) voltar.classList.toggle('hidden', nova !== 'ordens');
+
+    // Mantem o fluxo por teclado: o foco entra no primeiro item da etapa.
+    var alvo = nova === 'ordens'
+        ? document.querySelector('#corpo-seq-ordens .seq-ordem-checkbox')
+        : document.querySelector('.seq-setor-checkbox');
+    if (alvo) alvo.focus();
+}
+
+// Linha desmarcada fica riscada/opaca: o usuario ve o que sai do documento.
+function atualizarLinhaOrdemSequenciamento(caixa) {
+    var linha = caixa.closest('tr');
+    if (linha) linha.classList.toggle('seq-ordem-fora', !caixa.checked);
+}
+
+function atualizarContadorOrdensSequenciamento() {
+    var caixas = obterCheckboxesOrdensSequenciamento();
+    var marcadas = 0;
+    caixas.forEach(function (caixa) {
+        if (caixa.checked) marcadas++;
+    });
+
+    var contador = document.getElementById('seq-contador-ordens');
+    if (contador) {
+        var fora = caixas.length - marcadas;
+        contador.innerHTML = '<strong>' + marcadas + '</strong> de ' + caixas.length + ' ordens selecionadas'
+            + (fora ? ' <span class="seq-contador-corta">(' + fora + ' fora)</span>' : '');
+    }
+
+    // Checkbox do cabecalho: marcado quando todas entram, "meio marcado" no resto.
+    var todas = document.getElementById('chk-todas-ordens');
+    if (todas) {
+        todas.checked = caixas.length > 0 && marcadas === caixas.length;
+        todas.indeterminate = marcadas > 0 && marcadas < caixas.length;
+    }
+}
+
+function renderizarOrdensSequenciamento() {
+    var corpo = document.getElementById('corpo-seq-ordens');
+    if (!corpo) return;
+
+    var html = '';
+    ordensSequenciamento.forEach(function (ordem) {
+        var observacao = ordem.observacao === null || ordem.observacao === undefined
+            ? ''
+            : String(ordem.observacao).trim();
+
+        html += '<tr data-id="' + escaparAtributo(ordem.id) + '">'
+            + '<td class="seq-ordem-check">'
+            + '  <input type="checkbox" class="seq-ordem-checkbox" value="' + escaparAtributo(ordem.id) + '" checked'
+            + '         aria-label="Incluir a ordem ' + escaparAtributo(ordem.numero_op || ordem.id) + ' no PDF">'
+            + '</td>'
+            + '<td class="seq-op">' + escaparHtml(ordem.numero_op || '-') + '</td>'
+            + '<td class="seq-material">' + escaparHtml(ordem.material || '-') + '</td>'
+            + '<td class="seq-setor">' + escaparHtml(ordem.setor || '-') + '</td>'
+            + '<td class="seq-obs' + (observacao ? '' : ' seq-obs-vazia') + '" title="' + escaparAtributo(observacao) + '">'
+            + (observacao ? escaparHtml(observacao) : '—')
+            + '</td>'
+            + '</tr>';
+    });
+
+    corpo.innerHTML = html;
+
+    var vazio = document.getElementById('seq-ordens-vazio');
+    if (vazio) vazio.classList.toggle('hidden', ordensSequenciamento.length > 0);
+    var tabela = document.getElementById('tabela-seq-ordens');
+    if (tabela) tabela.classList.toggle('hidden', ordensSequenciamento.length === 0);
+
+    atualizarContadorOrdensSequenciamento();
+}
+
+function marcarOrdensSequenciamento(marcar) {
+    obterCheckboxesOrdensSequenciamento().forEach(function (caixa) {
+        caixa.checked = !!marcar;
+        atualizarLinhaOrdemSequenciamento(caixa);
+    });
+    atualizarContadorOrdensSequenciamento();
+}
+
+// IDs (numericos) das ordens que vao no PDF - e o campo ordens_selecionadas.
+function obterIdsOrdensSequenciamento() {
+    var ids = [];
+    obterCheckboxesOrdensSequenciamento().forEach(function (caixa) {
+        if (!caixa.checked) return;
+        var id = Number(caixa.value);
+        if (!isNaN(id)) ids.push(id);
+    });
+    return ids;
+}
+
+// Busca as ordens pendentes e passa para a etapa 2. Filtra no cliente porque
+// /ordens/pendentes nao aceita recorte por setor; o universo e o mesmo do PDF
+// (setores escolhidos, sem 'Pago' e sem 'Encerrado').
+async function buscarOrdensSequenciamento() {
+    var setores = obterSetoresMarcadosSequenciamento();
+    if (!setores.length) {
+        mostrarAvisoSequenciamento('Selecione pelo menos um setor para listar as ordens.');
+        return;
+    }
+
+    var botao = document.getElementById('btn-confirmar-sequenciamento');
+    var rotulo = document.getElementById('btn-confirmar-sequenciamento-label');
+    if (!botao) return;
+    var rotuloOriginal = rotulo ? rotulo.textContent : 'Buscar Ordens';
+
+    esconderAvisoSequenciamento();
+    botao.disabled = true;
+    if (rotulo) rotulo.textContent = 'Buscando ordens...';
+
+    try {
+        var resposta = await authFetch('/ordens/pendentes');
+        if (!resposta.ok) throw new Error('status ' + resposta.status);
+
+        var dados = await resposta.json();
+        var lista = Array.isArray(dados) ? dados : [];
+
+        ordensSequenciamento = lista.filter(function (ordem) {
+            if (setores.indexOf(ordem.setor) === -1) return false;
+            return SITUACOES_FORA_SEQUENCIAMENTO.indexOf(ordem.situacao) === -1;
+        });
+
+        if (!ordensSequenciamento.length) {
+            mostrarAvisoSequenciamento('Nenhuma ordem pendente nos setores selecionados.');
+            return;
+        }
+
+        renderizarOrdensSequenciamento();
+        definirEtapaSequenciamento('ordens');
+    } catch (erro) {
+        console.error('Erro ao buscar as ordens do sequenciamento:', erro);
+        mostrarAvisoSequenciamento('Falha ao buscar as ordens pendentes. Tente novamente.');
+    } finally {
+        botao.disabled = false;
+        // Se a busca deu certo, a etapa ja e a 2 e o rotulo e "Gerar PDF": nao mexer.
+        if (etapaSequenciamento === 'setores' && rotulo) rotulo.textContent = rotuloOriginal;
+    }
+}
+
 function abrirModalSequenciamento() {
     var modal = obterModalSequenciamento();
     if (!modal) return;
@@ -1093,11 +1281,14 @@ function abrirModalSequenciamento() {
     var setorAtivo = obterSetorAtivoDaTela();
     marcarSetoresSequenciamento(setorAtivo ? [setorAtivo] : SETORES_PADRAO_SEQUENCIAMENTO);
 
+    // Sempre abre na etapa 1, sem a lista da vez anterior.
+    ordensSequenciamento = [];
+    renderizarOrdensSequenciamento();
     esconderAvisoSequenciamento();
-    modal.classList.remove('hidden');
 
-    var primeiroCheckbox = document.querySelector('.seq-setor-checkbox');
-    if (primeiroCheckbox) primeiroCheckbox.focus();
+    modal.classList.remove('hidden');
+    // Depois de visivel: elemento oculto nao recebe foco.
+    definirEtapaSequenciamento('setores');
 }
 
 function fecharModalSequenciamento() {
@@ -1120,10 +1311,13 @@ async function lerErroSequenciamento(resposta) {
     return 'O servidor respondeu com status ' + resposta.status + '.';
 }
 
+// ETAPA 2 -> PDF: manda os setores e APENAS os IDs das ordens marcadas.
 async function gerarPdfSequenciamento() {
     var setores = obterSetoresMarcadosSequenciamento();
-    if (!setores.length) {
-        mostrarAvisoSequenciamento('Selecione pelo menos um setor para gerar o PDF.');
+    var ids = obterIdsOrdensSequenciamento();
+
+    if (!ids.length) {
+        mostrarAvisoSequenciamento('Selecione pelo menos uma ordem para gerar o PDF.');
         return;
     }
 
@@ -1144,7 +1338,10 @@ async function gerarPdfSequenciamento() {
         var resposta = await authFetch('/ordens/sequenciamento/pdf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ setores_selecionados: setores })
+            body: JSON.stringify({
+                setores_selecionados: setores,
+                ordens_selecionadas: ids
+            })
         });
 
         if (!resposta.ok) {
@@ -1175,7 +1372,8 @@ async function gerarPdfSequenciamento() {
         setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
 
         fecharModalSequenciamento();
-        mostrarToast('Sequenciamento de Ordens', setores.length + ' setor(es) incluído(s) no PDF.');
+        mostrarToast('Sequenciamento de Ordens',
+            ids.length + ' de ' + ordensSequenciamento.length + ' ordem(ns) incluída(s) no PDF.');
     } catch (erro) {
         if (janelaPdf) janelaPdf.close();
         console.error('Erro ao gerar o sequenciamento:', erro);
@@ -1186,13 +1384,22 @@ async function gerarPdfSequenciamento() {
     }
 }
 
+// O botao primario muda de papel conforme a etapa.
+function confirmarSequenciamento() {
+    if (etapaSequenciamento === 'ordens') {
+        gerarPdfSequenciamento();
+    } else {
+        buscarOrdensSequenciamento();
+    }
+}
+
 (function configurarModalSequenciamento() {
     var botaoAbrir = document.getElementById('btn-imprimir-sequenciamento');
     var modal = obterModalSequenciamento();
     if (!botaoAbrir || !modal) return;
 
     botaoAbrir.addEventListener('click', abrirModalSequenciamento);
-    document.getElementById('btn-confirmar-sequenciamento').addEventListener('click', gerarPdfSequenciamento);
+    document.getElementById('btn-confirmar-sequenciamento').addEventListener('click', confirmarSequenciamento);
     document.getElementById('btn-cancelar-sequenciamento').addEventListener('click', fecharModalSequenciamento);
     document.getElementById('btn-fechar-sequenciamento').addEventListener('click', fecharModalSequenciamento);
 
@@ -1204,15 +1411,45 @@ async function gerarPdfSequenciamento() {
         marcarSetoresSequenciamento([]);
     });
 
+    // Etapa 2: voltar para os setores sem perder a escolha feita.
+    document.getElementById('btn-voltar-sequenciamento').addEventListener('click', function () {
+        definirEtapaSequenciamento('setores');
+    });
+
+    document.getElementById('btn-marcar-todas-ordens').addEventListener('click', function () {
+        marcarOrdensSequenciamento(true);
+    });
+
+    document.getElementById('btn-desmarcar-todas-ordens').addEventListener('click', function () {
+        marcarOrdensSequenciamento(false);
+    });
+
+    document.getElementById('chk-todas-ordens').addEventListener('change', function (evento) {
+        marcarOrdensSequenciamento(evento.target.checked);
+    });
+
+    // Delegacao: as linhas sao recriadas a cada busca, o listener fica no tbody.
+    document.getElementById('corpo-seq-ordens').addEventListener('change', function (evento) {
+        var caixa = evento.target;
+        if (!caixa || !caixa.classList.contains('seq-ordem-checkbox')) return;
+        atualizarLinhaOrdemSequenciamento(caixa);
+        atualizarContadorOrdensSequenciamento();
+    });
+
     // Clique no fundo escuro fecha; clique dentro do card nao.
     modal.addEventListener('click', function (evento) {
         if (evento.target === modal) fecharModalSequenciamento();
     });
 
-    // Esc fecha o modal, como no editor inline da tabela.
+    // Esc: na etapa 2 volta para os setores (nao perde a lista por engano);
+    // na etapa 1 fecha, como no editor inline da tabela.
     document.addEventListener('keydown', function (evento) {
         if (evento.key !== 'Escape') return;
         if (modal.classList.contains('hidden')) return;
+        if (etapaSequenciamento === 'ordens') {
+            definirEtapaSequenciamento('setores');
+            return;
+        }
         fecharModalSequenciamento();
     });
 })();

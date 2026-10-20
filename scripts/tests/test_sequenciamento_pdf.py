@@ -413,6 +413,38 @@ def test_faixa_de_topo_cobre_a_largura_total_da_folha(tmp_path):
     assert '.117647 .160784 .231373 rg' in conteudo
 
 
+def test_celula_nao_exibe_prioridade_nem_rotulo(tmp_path):
+    ordens = [
+        ordem(setor='Celula', numero_op='CEL1', prioridade='KS'),
+        ordem(setor='Montagem', numero_op='MON1', prioridade='KS'),
+    ]
+
+    texto = texto_do_pdf(gerar(tmp_path, ordens))
+
+    # Só a OP de Montagem recebe o rótulo; a de Célula fica com travessão.
+    assert texto.count('[VERMELHA] KS') == 1
+    assert '—' in texto
+
+
+def test_celula_nao_usa_cor_de_destaque(tmp_path):
+    assert seq.cor_fundo_prioridade('Celula', 'Exportacao') == seq.COR_FUNDO_BRANCA
+    assert seq.cor_fundo_prioridade('Célula', 'KS') == seq.COR_FUNDO_BRANCA
+    assert seq.cor_fundo_prioridade('Montagem', 'Exportacao') == seq.COR_FUNDO_VERMELHA
+    assert seq.cor_fundo_prioridade('Montagem', 'Pendencia Comercial') == seq.COR_FUNDO_AMARELA
+
+
+def test_celula_ainda_respeita_a_ordem_fifo_por_data(tmp_path):
+    ordens = [
+        ordem(setor='Celula', numero_op='NOVA', prioridade='MRP', data_abertura='2026-10-10'),
+        ordem(setor='Celula', numero_op='VELHA', prioridade='KS', data_abertura='2026-01-01'),
+    ]
+
+    texto = texto_do_pdf(gerar(tmp_path, ordens))
+
+    # A classificação continua valendo na ordenação, só não é exibida.
+    assert texto.find('VELHA') < texto.find('NOVA')
+
+
 def test_pdf_inclui_o_logo_da_schadek(tmp_path):
     assert os.path.exists(seq.LOGO_PADRAO)
     assert seq.LARGURA_LOGO == 100

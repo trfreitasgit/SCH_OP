@@ -37,6 +37,10 @@ SETORES_ORDEM = ['Montagem', 'Subconjunto', 'BCM', 'Celula', 'Importada', 'Usina
 # Setores cujo detalhe técnico (observação) vai impresso na folha.
 SETORES_COM_OBSERVACAO = ('Importada', 'Usinagem')
 
+# Setores em que a prioridade é só critério interno de ordenação: não aparece na folha.
+SETORES_SEM_PRIORIDADE = ('Celula',)
+ROTULO_SEM_PRIORIDADE = '—'
+
 PRIORIDADES_VERMELHAS = ('EXPORTACAO', 'KS', 'MARELLI', 'MWM')
 PRIORIDADES_AMARELAS = ('PENDENCIA COMERCIAL',)
 
@@ -121,6 +125,26 @@ def formatar_milhar(valor):
     except (TypeError, ValueError):
         numero = 0
     return '{:,}'.format(numero).replace(',', '.')
+
+
+def _sem_prioridade(setor):
+    """True para setores que não exibem prioridade na folha (ex.: Célula)."""
+    chave = normalizar_texto(setor)
+    return any(chave == normalizar_texto(nome) for nome in SETORES_SEM_PRIORIDADE)
+
+
+def exibir_prioridade(setor, valor):
+    """Rótulo da coluna Prioridade: '—' nos setores sem prioridade visível."""
+    if _sem_prioridade(setor):
+        return ROTULO_SEM_PRIORIDADE
+    return rotulo_prioridade(valor)
+
+
+def cor_fundo_prioridade(setor, valor):
+    """Fundo da linha: Célula fica sem cor de destaque; demais seguem a lista."""
+    if _sem_prioridade(setor):
+        return COR_FUNDO_BRANCA
+    return _cor_fundo(classificar_prioridade(valor))
 
 
 # ---------------------------------------------------------------------------
@@ -302,7 +326,8 @@ def _linha_tabela(indice, registro, estilos):
 
     prioridade = registro.get('prioridade')
     lista = classificar_prioridade(prioridade)
-    cor_prioridade = {'VERMELHA': COR_TEXTO_VERMELHA}.get(lista, '#111827')
+    sem_prioridade = _sem_prioridade(registro.get('setor'))
+    cor_prioridade = '#111827' if sem_prioridade else {'VERMELHA': COR_TEXTO_VERMELHA}.get(lista, '#111827')
 
     return [
         Paragraph('%dº' % indice, estilos['base']),
@@ -310,7 +335,10 @@ def _linha_tabela(indice, registro, estilos):
         Paragraph(escape(str(registro.get('material') or '').strip()), estilos['material']),
         Paragraph(escape(formatar_milhar(registro.get('total_pecas'))), estilos['qtd']),
         Paragraph(
-            '<font color="%s">%s</font>' % (cor_prioridade, escape(rotulo_prioridade(prioridade))),
+            '<font color="%s">%s</font>' % (
+                cor_prioridade,
+                escape(exibir_prioridade(registro.get('setor'), prioridade)),
+            ),
             estilos['prioridade'],
         ),
         Paragraph(_texto_observacao(registro), estilos['obs']),
@@ -357,7 +385,7 @@ def _tabela_setor(ordens, estilos):
     estilo = _estilo_tabela(len(linhas))
     for indice, registro in enumerate(ordens, start=1):
         estilo.add('BACKGROUND', (0, indice), (-1, indice),
-                   colors.HexColor(_cor_fundo(classificar_prioridade(registro.get('prioridade')))))
+                   colors.HexColor(cor_fundo_prioridade(registro.get('setor'), registro.get('prioridade'))))
     tabela.setStyle(estilo)
     return tabela
 

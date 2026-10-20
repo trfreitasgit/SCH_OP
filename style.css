@@ -3514,6 +3514,202 @@ html:not(.dark) .filter-footer {
   display: none;
 }
 
+/* ==========================================================================
+   ETAPA 2 DO SEQUENCIAMENTO: LISTA DE ORDENS COM CHECKBOX
+   ========================================================================== */
+
+.seq-etapa.hidden {
+  display: none;
+}
+
+/* O card cresce na etapa das ordens: a tabela tem 5 colunas e nao caberia nos
+   540px da etapa de setores. */
+#card-sequenciamento {
+  transition: max-width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal-card.seq-card-ordens {
+  max-width: 880px;
+}
+
+/* Etiqueta "Etapa 1 de 2" acima do subtitulo. */
+.seq-etapa-chip {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--outline-light);
+  border-radius: 999px;
+  background: var(--bg-container-low);
+  color: var(--tertiary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.seq-ordens-acoes {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Contador "12 de 14 ordens selecionadas" alinhado a direita da barra. */
+.seq-contador {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.seq-contador strong {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.seq-contador .seq-contador-corta {
+  color: var(--status-amber);
+  font-weight: 700;
+}
+
+/* Rolagem propria: a lista pode ter centenas de ordens sem esticar o modal. */
+.seq-ordens-wrapper {
+  max-height: 46vh;
+  overflow: auto;
+  border: 1px solid var(--outline-light);
+  border-radius: 10px;
+  background: var(--bg-container-low);
+}
+
+.seq-ordens-tabela {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: left;
+}
+
+.seq-ordens-tabela thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 12px;
+  background: var(--bg-canvas);
+  border-bottom: 1px solid var(--outline);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.seq-ordens-tabela tbody tr {
+  border-left: 3px solid transparent;
+  transition: var(--transition);
+}
+
+.seq-ordens-tabela tbody tr:nth-child(even) {
+  /* Zebra neutra: clareia no escuro e escurece no claro (o rgba(30,34,43,.4)
+     da tabela principal e fixo e fica ilegivel no tema claro). */
+  background: rgba(148, 163, 184, 0.10);
+}
+
+html:not(.dark) .seq-ordens-tabela tbody tr:nth-child(even) {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.seq-ordens-tabela tbody tr:hover {
+  background: var(--bg-container-high);
+}
+
+/* Ordem DESMARCADA: fica visivelmente fora do PDF. */
+.seq-ordens-tabela tbody tr.seq-ordem-fora {
+  border-left-color: var(--status-red);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.seq-ordens-tabela tbody tr.seq-ordem-fora td:not(.seq-ordem-check) {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.seq-ordens-tabela tbody td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--outline-light);
+  color: var(--text-main);
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.seq-ordens-tabela tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.seq-ordem-check {
+  width: 40px;
+  padding: 8px 12px !important;
+  text-align: center !important;
+}
+
+.seq-ordem-check input[type="checkbox"],
+#chk-todas-ordens {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* Specificity: o td generico acima define --text-main; as colunas com cor
+   propria precisam vencer essa regra. */
+.seq-ordens-tabela .seq-op {
+  color: var(--primary);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.seq-ordens-tabela .seq-material {
+  font-family: var(--font-mono);
+}
+
+.seq-ordens-tabela .seq-setor {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.seq-ordens-tabela .seq-obs {
+  max-width: 320px;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seq-ordens-tabela .seq-obs-vazia {
+  color: var(--outline-variant);
+}
+
+.seq-ordens-vazio {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 26px 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.seq-ordens-vazio.hidden {
+  display: none;
+}
+
+.seq-ordens-vazio .material-symbols-outlined {
+  font-size: 18px;
+  opacity: 0.7;
+}
+
 #btn-confirmar-sequenciamento:disabled {
   opacity: 0.65;
   cursor: wait;
@@ -3521,9 +3717,20 @@ html:not(.dark) .filter-footer {
   transform: none;
 }
 
+/* Botoes do rodape que so existem em uma das etapas. */
+.modal-footer > button.hidden {
+  display: none;
+}
+
 @media (max-width: 640px) {
   .modal-overlay { padding: 12px; }
   .modal-card { border-radius: 16px; }
   .modal-header, .modal-body, .modal-footer { padding-left: 16px; padding-right: 16px; }
   .seq-setores-grid { grid-template-columns: 1fr; }
+  .seq-ordens-wrapper { max-height: 42vh; }
+  .seq-ordens-tabela { min-width: 460px; }
+  .seq-ordens-tabela thead th,
+  .seq-ordens-tabela tbody td { padding-left: 8px; padding-right: 8px; }
+  .seq-ordens-tabela .seq-obs { max-width: 150px; }
+  .seq-contador { margin-left: 0; width: 100%; }
 }

@@ -811,20 +811,24 @@
     </aside>
 
     <!-- ==================================================================
-         MODAL: SEQUENCIAMENTO DE ORDENS (selecao de setores)
+         MODAL: SEQUENCIAMENTO DE ORDENS (2 etapas)
+         Etapa 1: escolha dos setores. Etapa 2: lista das ordens pendentes
+         desses setores, todas marcadas, para o usuario desmarcar as que nao
+         devem entrar no PDF.
          Overlay proprio (nao usa o filter-drawer). A logica esta em ordens.js
          (regra do projeto: nenhum <script> inline novo).
-         Os valores dos checkboxes sao os mesmos data-setor das abas e o mesmo
-         vocabulario de setor usado pelo banco ('Celula' sem acento).
+         Os valores dos checkboxes de setor sao os mesmos data-setor das abas e
+         o mesmo vocabulario de setor usado pelo banco ('Celula' sem acento).
          ================================================================== -->
     <div class="modal-overlay hidden" id="modal-sequenciamento" role="dialog" aria-modal="true"
         aria-labelledby="titulo-sequenciamento" aria-describedby="subtitulo-sequenciamento">
-        <div class="modal-card">
+        <div class="modal-card" id="card-sequenciamento">
             <div class="modal-header">
                 <div class="modal-title-group">
                     <span class="modal-accent-bar"></span>
                     <div>
                         <h2 class="modal-title" id="titulo-sequenciamento">Imprimir Sequenciamento de Ordens</h2>
+                        <span class="seq-etapa-chip" id="seq-etapa-chip">Etapa 1 de 2</span>
                         <span class="modal-subtitle" id="subtitulo-sequenciamento">Selecione os setores que deseja incluir no documento:</span>
                     </div>
                 </div>
@@ -834,36 +838,71 @@
             </div>
 
             <div class="modal-body">
-                <div class="seq-quick-actions">
-                    <button class="btn-secondary-action" id="btn-marcar-todos-sequenciamento" type="button">Marcar Todos</button>
-                    <button class="btn-secondary-action" id="btn-desmarcar-todos-sequenciamento" type="button">Desmarcar Todos</button>
+                <!-- ETAPA 1: SETORES -->
+                <div class="seq-etapa" id="seq-etapa-setores" data-etapa="setores">
+                    <div class="seq-quick-actions">
+                        <button class="btn-secondary-action" id="btn-marcar-todos-sequenciamento" type="button">Marcar Todos</button>
+                        <button class="btn-secondary-action" id="btn-desmarcar-todos-sequenciamento" type="button">Desmarcar Todos</button>
+                    </div>
+
+                    <div class="seq-setores-grid">
+                        <label class="filter-option seq-setor-option">
+                            <input type="checkbox" class="seq-setor-checkbox" value="Montagem" checked>
+                            <span>Montagem</span>
+                        </label>
+                        <label class="filter-option seq-setor-option">
+                            <input type="checkbox" class="seq-setor-checkbox" value="Subconjunto" checked>
+                            <span>Subconjunto</span>
+                        </label>
+                        <label class="filter-option seq-setor-option">
+                            <input type="checkbox" class="seq-setor-checkbox" value="BCM" checked>
+                            <span>BCM</span>
+                        </label>
+                        <label class="filter-option seq-setor-option">
+                            <input type="checkbox" class="seq-setor-checkbox" value="Celula" checked>
+                            <span>Célula</span>
+                        </label>
+                        <label class="filter-option seq-setor-option">
+                            <input type="checkbox" class="seq-setor-checkbox" value="Importada">
+                            <span>Importada</span>
+                        </label>
+                        <label class="filter-option seq-setor-option">
+                            <input type="checkbox" class="seq-setor-checkbox" value="Usinagem">
+                            <span>Usinagem</span>
+                        </label>
+                    </div>
                 </div>
 
-                <div class="seq-setores-grid">
-                    <label class="filter-option seq-setor-option">
-                        <input type="checkbox" class="seq-setor-checkbox" value="Montagem" checked>
-                        <span>Montagem</span>
-                    </label>
-                    <label class="filter-option seq-setor-option">
-                        <input type="checkbox" class="seq-setor-checkbox" value="Subconjunto" checked>
-                        <span>Subconjunto</span>
-                    </label>
-                    <label class="filter-option seq-setor-option">
-                        <input type="checkbox" class="seq-setor-checkbox" value="BCM" checked>
-                        <span>BCM</span>
-                    </label>
-                    <label class="filter-option seq-setor-option">
-                        <input type="checkbox" class="seq-setor-checkbox" value="Celula" checked>
-                        <span>Célula</span>
-                    </label>
-                    <label class="filter-option seq-setor-option">
-                        <input type="checkbox" class="seq-setor-checkbox" value="Importada">
-                        <span>Importada</span>
-                    </label>
-                    <label class="filter-option seq-setor-option">
-                        <input type="checkbox" class="seq-setor-checkbox" value="Usinagem">
-                        <span>Usinagem</span>
-                    </label>
+                <!-- ETAPA 2: ORDENS -->
+                <div class="seq-etapa hidden" id="seq-etapa-ordens" data-etapa="ordens">
+                    <div class="seq-quick-actions seq-ordens-acoes">
+                        <button class="btn-secondary-action" id="btn-marcar-todas-ordens" type="button">Marcar Todas</button>
+                        <button class="btn-secondary-action" id="btn-desmarcar-todas-ordens" type="button">Desmarcar Todas</button>
+                        <span class="seq-contador" id="seq-contador-ordens" role="status" aria-live="polite">0 de 0 ordens selecionadas</span>
+                    </div>
+
+                    <div class="seq-ordens-wrapper">
+                        <table class="seq-ordens-tabela" id="tabela-seq-ordens"
+                            aria-label="Ordens pendentes dos setores selecionados">
+                            <thead>
+                                <tr>
+                                    <th class="seq-ordem-check">
+                                        <input type="checkbox" id="chk-todas-ordens" aria-label="Marcar ou desmarcar todas as ordens">
+                                    </th>
+                                    <th scope="col">OP</th>
+                                    <th scope="col">Material</th>
+                                    <th scope="col">Setor</th>
+                                    <th scope="col">Observação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="corpo-seq-ordens"></tbody>
+                        </table>
+
+                        <div class="seq-ordens-vazio hidden" id="seq-ordens-vazio">
+                            <span class="material-symbols-outlined">inbox</span>
+                            <span>Nenhuma ordem pendente nos setores selecionados.</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="seq-aviso hidden" id="seq-aviso" role="alert">
@@ -874,9 +913,10 @@
 
             <div class="modal-footer">
                 <button class="btn-secondary-action" id="btn-cancelar-sequenciamento" type="button">Cancelar</button>
+                <button class="btn-secondary-action hidden" id="btn-voltar-sequenciamento" type="button">Voltar</button>
                 <button class="btn-primary-action" id="btn-confirmar-sequenciamento" type="button">
-                    <span class="material-symbols-outlined" style="font-size: 18px;">print</span>
-                    <span id="btn-confirmar-sequenciamento-label">Gerar PDF</span>
+                    <span class="material-symbols-outlined" style="font-size: 18px;" id="btn-confirmar-sequenciamento-icone">search</span>
+                    <span id="btn-confirmar-sequenciamento-label">Buscar Ordens</span>
                 </button>
             </div>
         </div>
