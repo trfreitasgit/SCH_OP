@@ -5,6 +5,8 @@
 
 const fs = require('node:fs');
 const os = require('node:os');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const BASE = 'http://127.0.0.1:3000';
 const cfg = {};
@@ -21,6 +23,25 @@ const check = (nome, cond, extra) => {
     else { fail++; console.log('  FAIL', nome, extra || ''); }
 };
 const pdfsNoTemp = () => fs.readdirSync(os.tmpdir()).filter((f) => /^sequenciamento_.*\.pdf$/i.test(f));
+
+// Extrai o texto do PDF com pypdf (ja usado no projeto). Serve para provar o
+// conteudo, nao so o status: tamanho e assinatura nao dizem quais OPs sairam.
+function textoDoPdf(buf) {
+    const arquivo = path.join(os.tmpdir(), 'e2e_seq_conteudo_' + process.pid + '.pdf');
+    fs.writeFileSync(arquivo, buf);
+    try {
+        const script =
+            'import sys\n' +
+            'from pypdf import PdfReader\n' +
+            'print("\\n".join((p.extract_text() or "") for p in PdfReader(sys.argv[1]).pages))\n';
+        return execFileSync('python', ['-c', script, arquivo], {
+            encoding: 'utf8',
+            env: Object.assign({}, process.env, { PYTHONIOENCODING: 'utf-8' })
+        });
+    } finally {
+        if (fs.existsSync(arquivo)) fs.unlinkSync(arquivo);
+    }
+}
 
 (async () => {
     const lr = await fetch(`${cfg.SUPABASE_URL_ORDENS}/auth/v1/token?grant_type=password`, {
@@ -109,17 +130,8 @@ const pdfsNoTemp = () => fs.readdirSync(os.tmpdir()).filter((f) => /^sequenciame
     // Prova de conteudo: OP encerrada nao pode aparecer na folha.
     const encerradas = foraDaFolha.filter((o) => o.situacao === 'Encerrado').map((o) => o.numero_op);
     if (encerradas.length) {
-        const arquivo = require('node:path').join(os.tmpdir(), 'e2e_seq_conteudo.pdf');
-        fs.writeFileSync(arquivo, buf);
         try {
-            const script =
-                'import sys\n' +
-                'from pypdf import PdfReader\n' +
-                'print("\\n".join((p.extract_text() or "") for p in PdfReader(sys.argv[1]).pages))\n';
-            const texto = require('node:child_process').execFileSync('python', ['-c', script, arquivo], {
-                encoding: 'utf8',
-                env: Object.assign({}, process.env, { PYTHONIOENCODING: 'utf-8' })
-            });
+            const texto = textoDoPdf(buf);
             const vazadas = encerradas.filter((op) => texto.includes(String(op)));
             check(
                 'nenhuma OP Encerrado no PDF (' + encerradas.length + ' no banco)',
@@ -128,8 +140,6 @@ const pdfsNoTemp = () => fs.readdirSync(os.tmpdir()).filter((f) => /^sequenciame
             );
         } catch (e) {
             console.log('  SKIP checagem de texto (pypdf indisponivel):', e.message.split('\n')[0]);
-        } finally {
-            fs.unlinkSync(arquivo);
         }
     }
 
@@ -145,6 +155,90 @@ const pdfsNoTemp = () => fs.readdirSync(os.tmpdir()).filter((f) => /^sequenciame
         check('PDF filtrado e menor que o completo', bufFiltrado.length <= buf.length, bufFiltrado.length + ' <= ' + buf.length);
     } else {
         console.log('  (sem setores com pendencia para filtrar)');
+    }
+
+    console.log('\n== PDF apenas com as ordens escolhidas (etapa 2) ==');
+    const tipoErradoIds = await fetch(`${BASE}/ordens/sequenciamento/pdf`, {
+        method: 'POST', headers: H, body: JSON.stringify({ ordens_selecionadas: 'nao-e-lista' })
+    });
+    const corpoIds = await tipoErradoIds.json().catch(() => ({}));
+    check('ordens_selecionadas nao-lista -> 400', tipoErradoIds.status === 400, 'status=' + tipoErradoIds.status);
+    check(
+        'mensagem cita o campo ordens_selecionadas',
+        /ordens_selecionadas/.test(corpoIds.erro || ''),
+        corpoIds.erro || ''
+    );
+
+    const idsVazios = await fetch(`${BASE}/ordens/sequenciamento/pdf`, {
+        method: 'POST', headers: H, body: JSON.stringify({ ordens_selecionadas: [] })
+    });
+    check('ordens_selecionadas vazia -> 400 (nao vira "todas")', idsVazios.status === 400, 'status=' + idsVazios.status);
+
+    const idsComLixo = await fetch(`${BASE}/ordens/sequenciamento/pdf`, {
+        method: 'POST', headers: H, body: JSON.stringify({ ordens_selecionadas: [0, -1] })
+    });
+    check('ids zero/negativos -> 400', idsComLixo.status === 400, 'status=' + idsComLixo.status);
+
+    if (pendentes.length >= 2) {
+        const escolhidas = [pendentes[0], pendentes[pendentes.length - 1]];
+        const idsEscolhidos = escolhidas.map((o) => Number(o.id));
+
+        const respSelecao = await fetch(`${BASE}/ordens/sequenciamento/pdf`, {
+            method: 'POST', headers: H, body: JSON.stringify({ ordens_selecionadas: idsEscolhidos })
+        });
+        check('2 ordens escolhidas -> 200', respSelecao.status === 200, 'status=' + respSelecao.status);
+
+        const bufSelecao = Buffer.from(await respSelecao.arrayBuffer());
+        check('PDF da selecao e valido', bufSelecao.slice(0, 5).toString() === '%PDF-', bufSelecao.length + ' bytes');
+        check('PDF da selecao nao e maior que o completo', bufSelecao.length <= buf.length, bufSelecao.length + ' <= ' + buf.length);
+
+        try {
+            const texto = textoDoPdf(bufSelecao);
+            const faltando = escolhidas.filter((o) => !texto.includes(String(o.numero_op)));
+            check(
+                'PDF traz as OPs escolhidas (' + escolhidas.map((o) => o.numero_op).join(', ') + ')',
+                faltando.length === 0,
+                faltando.length ? 'faltou: ' + faltando.map((o) => o.numero_op).join(', ') : 'ok'
+            );
+
+            const naoEscolhidas = pendentes.filter((o) => !idsEscolhidos.includes(Number(o.id)));
+            const vazaram = naoEscolhidas.filter((o) => texto.includes(String(o.numero_op)));
+            check(
+                'ordens nao escolhidas ficaram fora (' + naoEscolhidas.length + ' no banco)',
+                vazaram.length === 0,
+                vazaram.length ? 'vazou: ' + vazaram.map((o) => o.numero_op).join(', ') : 'ok'
+            );
+        } catch (e) {
+            console.log('  SKIP checagem de texto (pypdf indisponivel):', e.message.split('\n')[0]);
+        }
+    } else {
+        console.log('  (menos de 2 ordens pendentes para testar a selecao)');
+    }
+
+    if (foraDaFolha.length) {
+        const fora = foraDaFolha[0];
+        const soFora = await fetch(`${BASE}/ordens/sequenciamento/pdf`, {
+            method: 'POST', headers: H, body: JSON.stringify({ ordens_selecionadas: [Number(fora.id)] })
+        });
+        check(
+            'id de ordem Pago/Encerrado -> 400 (filtro de situacao prevalece)',
+            soFora.status === 400,
+            'status=' + soFora.status
+        );
+    }
+
+    if (pendentes.length && setores.length > 1) {
+        const alvo = pendentes[0];
+        const outroSetor = setores.find((s) => s !== alvo.setor);
+        const cruzado = await fetch(`${BASE}/ordens/sequenciamento/pdf`, {
+            method: 'POST', headers: H,
+            body: JSON.stringify({ setores_selecionados: [outroSetor], ordens_selecionadas: [Number(alvo.id)] })
+        });
+        check(
+            'setor + id de outro setor -> 400 (filtros se somam)',
+            cruzado.status === 400,
+            'status=' + cruzado.status
+        );
     }
 
     console.log('\n== cleanup do temporario ==');

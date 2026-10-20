@@ -523,6 +523,9 @@ app.post('/ordens/export', requireAuth, async function (req, res) {
 // --------------------------------------------------------------------------
 // Mesmo desenho do /ordens/export: o servidor consulta as ordens pendentes e
 // manda as linhas prontas para o script Python pelo stdin (execFile, sem shell).
+// Body opcional:
+//   setores_selecionados -> lista de textos (etapa 1 do modal)
+//   ordens_selecionadas  -> lista de IDs inteiros (etapa 2; subconjunto do setor)
 // O script devolve o caminho do PDF na ultima linha do stdout; o servidor envia
 // o arquivo inline e o remove do disco depois.
 // ==========================================================================
@@ -533,13 +536,19 @@ app.post('/ordens/sequenciamento/pdf', requireAuth, async function (req, res) {
         return res.status(400).json({ erro: '"setores_selecionados" deve ser uma lista de textos.' });
     }
 
+    var ids = sequenciamento.normalizarIds(req.body && req.body.ordens_selecionadas);
+
+    if (ids === undefined) {
+        return res.status(400).json({ erro: '"ordens_selecionadas" deve ser uma lista de IDs (inteiros positivos).' });
+    }
+
     if (!fs.existsSync(sequenciamento.CAMINHO_SCRIPT)) {
         return res.status(500).json({ erro: 'Script de sequenciamento não encontrado (scripts/gerar_sequenciamento_pdf.py).' });
     }
 
     var ordens;
     try {
-        ordens = await sequenciamento.buscarOrdensPendentes(supabase, setores);
+        ordens = await sequenciamento.buscarOrdensPendentes(supabase, setores, ids);
     } catch (erroBanco) {
         console.error('Erro ao buscar as ordens para sequenciamento:', erroBanco.message);
         return res.status(500).json({
@@ -549,7 +558,11 @@ app.post('/ordens/sequenciamento/pdf', requireAuth, async function (req, res) {
     }
 
     if (!ordens.length) {
-        return res.status(400).json({ erro: 'Nenhuma ordem pendente encontrada para os setores selecionados' });
+        return res.status(400).json({
+            erro: ids
+                ? 'Nenhuma ordem pendente encontrada para as ordens selecionadas.'
+                : 'Nenhuma ordem pendente encontrada para os setores selecionados'
+        });
     }
 
     var saida;

@@ -74,6 +74,43 @@ test('normalizarSetores com lista so de vazios vira null (todos)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// normalizarIds - selecao de ordens vinda do modal (etapa 2)
+// ---------------------------------------------------------------------------
+test('normalizarIds sem filtro devolve null (todas as ordens do setor)', () => {
+    assert.strictEqual(seq.normalizarIds(undefined), null);
+    assert.strictEqual(seq.normalizarIds(null), null);
+});
+
+test('normalizarIds aceita numero e string numerica', () => {
+    assert.deepStrictEqual(seq.normalizarIds([68, '69']), [68, 69]);
+    assert.deepStrictEqual(seq.normalizarIds([' 68 ']), [68]);
+});
+
+test('normalizarIds remove repetidos preservando a ordem', () => {
+    assert.deepStrictEqual(seq.normalizarIds([5, '5', 3, 5]), [5, 3]);
+});
+
+test('normalizarIds rejeita lista vazia (selecao vazia nao significa "todas")', () => {
+    assert.strictEqual(seq.normalizarIds([]), undefined);
+});
+
+test('normalizarIds rejeita o que nao e lista', () => {
+    assert.strictEqual(seq.normalizarIds(68), undefined);
+    assert.strictEqual(seq.normalizarIds('68'), undefined);
+    assert.strictEqual(seq.normalizarIds({ id: 68 }), undefined);
+});
+
+test('normalizarIds rejeita zero, negativo, decimal, lixo e boolean', () => {
+    [0, -1, 1.5, '', '   ', 'abc', '1.5', true, null, undefined, {}, NaN].forEach(function (valor) {
+        assert.strictEqual(
+            seq.normalizarIds([valor]),
+            undefined,
+            'deveria rejeitar: ' + String(valor)
+        );
+    });
+});
+
+// ---------------------------------------------------------------------------
 // buscarOrdensPendentes
 // ---------------------------------------------------------------------------
 function clienteFalso(registros, erro) {
@@ -90,7 +127,11 @@ function clienteFalso(registros, erro) {
             this._q.neqs.push([coluna, valor]);
             return this;
         },
-        in(coluna, valores) { this._q.in = [coluna, valores]; return this; },
+        in(coluna, valores) {
+            if (!this._q.ins) this._q.ins = [];
+            this._q.ins.push([coluna, valores]);
+            return this;
+        },
         then(resolve) {
             resolve(erro ? { data: null, error: erro } : { data: registros, error: null });
         }
@@ -140,7 +181,7 @@ test('buscarOrdensPendentes filtra por setor quando recebe a lista', async () =>
 
     await seq.buscarOrdensPendentes(construtor, ['Montagem', 'Usinagem']);
 
-    assert.deepStrictEqual(consultas[0].in, ['setor', ['Montagem', 'Usinagem']]);
+    assert.deepStrictEqual(consultas[0].ins, [['setor', ['Montagem', 'Usinagem']]]);
 });
 
 test('buscarOrdensPendentes nao filtra por setor quando a lista e null', async () => {
@@ -148,7 +189,34 @@ test('buscarOrdensPendentes nao filtra por setor quando a lista e null', async (
 
     await seq.buscarOrdensPendentes(construtor, null);
 
-    assert.strictEqual(consultas[0].in, undefined);
+    assert.strictEqual(consultas[0].ins, undefined);
+});
+
+test('buscarOrdensPendentes filtra por id quando recebe a selecao', async () => {
+    const { construtor, consultas } = clienteFalso([]);
+
+    await seq.buscarOrdensPendentes(construtor, null, [68, 69]);
+
+    assert.deepStrictEqual(consultas[0].ins, [['id', [68, 69]]]);
+});
+
+test('buscarOrdensPendentes combina setor e ids', async () => {
+    const { construtor, consultas } = clienteFalso([]);
+
+    await seq.buscarOrdensPendentes(construtor, ['Subconjunto'], [68]);
+
+    assert.deepStrictEqual(consultas[0].ins, [
+        ['setor', ['Subconjunto']],
+        ['id', [68]]
+    ]);
+});
+
+test('buscarOrdensPendentes sem ids nao filtra por id', async () => {
+    const { construtor, consultas } = clienteFalso([]);
+
+    await seq.buscarOrdensPendentes(construtor, ['Subconjunto'], null);
+
+    assert.deepStrictEqual(consultas[0].ins, [['setor', ['Subconjunto']]]);
 });
 
 test('buscarOrdensPendentes propaga o erro do banco', async () => {
