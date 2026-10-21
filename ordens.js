@@ -2,6 +2,11 @@ var ordensCarregadas = [];
 var previaOrdens = [];
 var listaFiltrada = [];
 var listaAtual = [];
+// Selecao estilo planilha: Ctrl+clique alterna a linha, Shift+clique marca o
+// intervalo. Guardada por id (e nao pelo DOM) para sobreviver a paginacao,
+// filtro e reordenacao, ja que as <tr> sao reconstruidas a cada render.
+var ordensSelecionadas = new Set();
+var indiceAncoraSelecao = null; // indice da linha do ultimo clique, base do Shift
 var campoOrdenado = null;
 var ordemCrescente = true;
 var celulaEmEdicao = null;
@@ -752,6 +757,9 @@ async function carregarOrdensPendentes() {
         const resposta = await authFetch('/ordens/pendentes');
         const dados = await resposta.json();
         ordensCarregadas = dados;
+        // Id removido em outro terminal (ou que virou 'Encerrado') nao pode
+        // continuar contando na barra de selecao.
+        descartarSelecaoInexistente(ordensCarregadas);
 
         // Preserva a ordenacao escolhida pelo usuario entre recargas: sem isso,
         // um cadastro em lote devolveria a lista na ordem padrao do banco.
@@ -769,31 +777,48 @@ async function carregarOrdensPendentes() {
     }
 }
 
-// COPIAR ORDENS PARA O SAP: copia exatamente as ordens que estão aparecendo na tela (filtradas)
-document.getElementById('btnCopiar').addEventListener('click', function() {
-    var linhas = document.querySelectorAll('#tabelaOrdens tbody tr');
-    var ops = [];
+// OPs que vao para o SAP. Com selecao ativa (Ctrl+clique / checkbox / Shift),
+// copia SO as marcadas - inclusive as de outras paginas. Sem selecao, mantem o
+// comportamento antigo: todas as ordens visiveis na pagina atual.
+function obterOpsParaCopiar() {
+    if (ordensSelecionadas.size > 0) {
+        // Percorre a lista de dados (ordem atual da tabela) para o texto sair
+        // sempre na mesma sequencia da tela, nao na ordem do clique.
+        return (ordensCarregadas || [])
+            .filter(function(ordem) { return estaSelecionada(ordem.id); })
+            .map(function(ordem) { return String(ordem.numero_op || '').trim(); })
+            .filter(function(op) { return op !== ''; });
+    }
 
-    linhas.forEach(function(tr) {
-        if (tr.style.display !== 'none') {
-            var tdOp = tr.querySelector('[data-coluna="numero_op"]');
-            if (tdOp) {
-                var valor = tdOp.innerText.trim();
-                if (valor) {
-                    ops.push(valor);
-                }
-            }
-        }
+    var ops = [];
+    document.querySelectorAll('#tabelaOrdens tbody tr').forEach(function(tr) {
+        if (tr.style.display === 'none') return;
+        var tdOp = tr.querySelector('[data-coluna="numero_op"]');
+        if (!tdOp) return;
+        var valor = tdOp.innerText.trim();
+        if (valor) ops.push(valor);
     });
+    return ops;
+}
+
+function copiarOpsParaSap() {
+    var usandoSelecao = ordensSelecionadas.size > 0;
+    var ops = obterOpsParaCopiar();
 
     if (ops.length === 0) {
-        alert('Nenhuma ordem visível para copiar.');
+        alert(usandoSelecao
+            ? 'As ordens selecionadas nao estao carregadas na tabela.'
+            : 'Nenhuma ordem visível para copiar.');
         return;
     }
 
     var texto = ops.join('\n');
-    navigator.clipboard.writeText(texto).then(function() {
-        mostrarToast('OPs Copiadas para o SAP!', ops.length + ' ordens visíveis copiadas.');
+    var descricao = usandoSelecao
+        ? ops.length + (ops.length === 1 ? ' ordem selecionada copiada.' : ' ordens selecionadas copiadas.')
+        : ops.length + ' ordens visíveis copiadas.';
+
+    var aposCopiar = function() {
+        mostrarToast('OPs Copiadas para o SAP!', descricao);
         // Show SAP buffer indicator
         var sapBadge = document.getElementById('sap-buffer-indicator');
         var sapCount = document.getElementById('sap-buffer-count');
@@ -806,28 +831,36 @@ document.getElementById('btnCopiar').addEventListener('click', function() {
                 sapBadge.classList.remove('active');
             }, 5000);
         }
-    }).catch(function() {
-        // Fallback para ambientes restritos
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(texto).then(aposCopiar).catch(function() {
+            // Fallback para ambientes restritos (sem permissao de clipboard)
+            var area = document.createElement('textarea');
+            area.value = texto;
+            document.body.appendChild(area);
+            area.select();
+            document.execCommand('copy');
+            document.body.removeChild(area);
+            aposCopiar();
+        });
+    } else {
         var area = document.createElement('textarea');
         area.value = texto;
         document.body.appendChild(area);
         area.select();
         document.execCommand('copy');
         document.body.removeChild(area);
-        mostrarToast('OPs Copiadas para o SAP!', ops.length + ' ordens visíveis copiadas.');
-        var sapBadge = document.getElementById('sap-buffer-indicator');
-        var sapCount = document.getElementById('sap-buffer-count');
-        if (sapBadge && sapCount) {
-            sapCount.innerText = ops.length;
-            sapBadge.style.display = 'flex';
-            sapBadge.classList.add('active');
-            setTimeout(function() {
-                sapBadge.style.display = 'none';
-                sapBadge.classList.remove('active');
-            }, 5000);
-        }
-    });
-});
+        aposCopiar();
+    }
+}
+
+document.getElementById('btnCopiar').addEventListener('click', copiarOpsParaSap);
+
+var btnCopiarSelecionadas = document.getElementById('btnCopiarSelecionadas');
+if (btnCopiarSelecionadas) {
+    btnCopiarSelecionadas.addEventListener('click', copiarOpsParaSap);
+}
 
 // ==========================================================================
 // EXPORTAR PARA EXCEL: envia TODOS os IDs da lista filtrada (ignora a paginacao)
@@ -1829,19 +1862,88 @@ async function salvarColuna(td, editor, id, coluna, novoValor) {
 // ==========================================================================
 // TAREFA 2: EDIÇÃO EM MASSA & REMOÇÃO
 // ==========================================================================
+function estaSelecionada(id) {
+    return ordensSelecionadas.has(String(id));
+}
+
+function marcarSelecionada(id, marcar) {
+    if (marcar) ordensSelecionadas.add(String(id));
+    else ordensSelecionadas.delete(String(id));
+}
+
+function linhasDaTabela() {
+    return Array.from(document.querySelectorAll('#tabelaOrdens tbody tr'));
+}
+
+function indiceDaLinha(tr) {
+    return linhasDaTabela().indexOf(tr);
+}
+
+// Alterna uma linha (Ctrl+clique / checkbox) e guarda a ancora do Shift+clique.
+function alternarSelecaoLinha(tr) {
+    var id = tr.dataset.id;
+    if (!id) return;
+    marcarSelecionada(id, !estaSelecionada(id));
+    indiceAncoraSelecao = indiceDaLinha(tr);
+    atualizarEstadoSelecao();
+}
+
+// Shift+clique: marca (adiciona) todas as linhas entre a ancora e a clicada.
+// Somar em vez de substituir e proposital: a selecao pode ter vindo de outra
+// pagina, e trocar o intervalo descartaria o que ja tinha sido escolhido.
+function selecionarIntervalo(tr) {
+    var linhas = linhasDaTabela();
+    var atual = linhas.indexOf(tr);
+    if (atual === -1) return;
+
+    if (indiceAncoraSelecao === null || indiceAncoraSelecao < 0 || indiceAncoraSelecao >= linhas.length) {
+        // Sem ancora valida (ex.: primeira acao foi Shift+clique): trata como Ctrl+clique.
+        alternarSelecaoLinha(tr);
+        return;
+    }
+
+    var de = Math.min(indiceAncoraSelecao, atual);
+    var ate = Math.max(indiceAncoraSelecao, atual);
+    for (var i = de; i <= ate; i++) {
+        var id = linhas[i].dataset.id;
+        if (id) marcarSelecionada(id, true);
+    }
+    atualizarEstadoSelecao();
+}
+
+function limparSelecao() {
+    ordensSelecionadas.clear();
+    indiceAncoraSelecao = null;
+    atualizarEstadoSelecao();
+}
+
 function atualizarEstadoSelecao() {
-    var checkboxes = document.querySelectorAll('.check-ordem');
-    var marcadas = Array.from(checkboxes).filter(function(c) { return c.checked; });
-    var total = checkboxes.length;
+    var linhas = linhasDaTabela();
+
+    linhas.forEach(function(tr) {
+        var cb = tr.querySelector('.check-ordem');
+        if (!cb) return;
+        var sel = estaSelecionada(tr.dataset.id);
+        cb.checked = sel;
+        tr.classList.toggle('tr-selecionada', sel);
+    });
+
+    var total = ordensSelecionadas.size;
     var checkTodas = document.getElementById('checkTodas');
-    var barra = document.getElementById('barraEdicaoMassa');
-    var labelQtd = document.getElementById('bulk-selected-count');
 
     if (checkTodas) {
-        if (total > 0 && marcadas.length === total) {
+        // "Todas" significa todas as ordens do filtro atual (pode haver varias
+        // paginas). Comparar so com a pagina deixaria o cabecalho "parcial"
+        // logo depois de marcar todas.
+        var filtradas = listaFiltrada || [];
+        var marcadasNoFiltro = filtradas.filter(function(ordem) {
+            return estaSelecionada(ordem.id);
+        }).length;
+
+        if (filtradas.length > 0 && marcadasNoFiltro === filtradas.length) {
             checkTodas.checked = true;
             checkTodas.indeterminate = false;
-        } else if (marcadas.length > 0) {
+        } else if (total > 0) {
             checkTodas.checked = false;
             checkTodas.indeterminate = true;
         } else {
@@ -1850,11 +1952,14 @@ function atualizarEstadoSelecao() {
         }
     }
 
+    var barra = document.getElementById('barraEdicaoMassa');
+    var labelQtd = document.getElementById('bulk-selected-count');
+
     if (barra) {
-        if (marcadas.length > 0) {
+        if (total > 0) {
             barra.style.display = 'flex';
             if (labelQtd) {
-                labelQtd.innerText = marcadas.length + (marcadas.length === 1 ? ' ordem selecionada' : ' ordens selecionadas');
+                labelQtd.innerText = total + (total === 1 ? ' ordem selecionada' : ' ordens selecionadas');
             }
         } else {
             barra.style.display = 'none';
@@ -1863,8 +1968,16 @@ function atualizarEstadoSelecao() {
 }
 
 function obterIdsSelecionados() {
-    var marcadas = document.querySelectorAll('.check-ordem:checked');
-    return Array.from(marcadas).map(function(c) { return parseInt(c.value, 10); });
+    return Array.from(ordensSelecionadas).map(function(id) { return parseInt(id, 10); });
+}
+
+// Remove da selecao ids que deixaram de existir (exclusao) ou de vir na carga.
+function descartarSelecaoInexistente(lista) {
+    if (ordensSelecionadas.size === 0) return;
+    var existentes = new Set((lista || []).map(function(o) { return String(o.id); }));
+    Array.from(ordensSelecionadas).forEach(function(id) {
+        if (!existentes.has(id)) ordensSelecionadas.delete(id);
+    });
 }
 
 function renderizarCampoValorMassa() {
@@ -2070,6 +2183,7 @@ async function removerOrdemIndividual(id, op) {
         ordensCarregadas = ordensCarregadas.filter(function(o) { return o.id !== id; });
         listaFiltrada = listaFiltrada.filter(function(o) { return o.id !== id; });
         listaAtual = listaAtual.filter(function(o) { return o.id !== id; });
+        marcarSelecionada(id, false); // id excluido nao pode continuar na selecao
         renderizarTabelaComPaginacao(listaFiltrada);
         mostrarToast('Ordem OP ' + (op || id) + ' removida com sucesso!');
     } catch (err) {
@@ -2107,6 +2221,7 @@ async function removerOrdensEmMassa() {
         ordensCarregadas = ordensCarregadas.filter(function(o) { return !ids.includes(o.id); });
         listaFiltrada = listaFiltrada.filter(function(o) { return !ids.includes(o.id); });
         listaAtual = listaAtual.filter(function(o) { return !ids.includes(o.id); });
+        ids.forEach(function(id) { marcarSelecionada(id, false); }); // excluidas saem da selecao
         renderizarTabelaComPaginacao(listaFiltrada);
         mostrarToast(ids.length + ' ordens removidas com sucesso!');
     } catch (err) {
@@ -2419,6 +2534,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             tbody.addEventListener('change', function(e) {
                 if (e.target && e.target.classList.contains('check-ordem')) {
+                    var tr = e.target.closest('tr');
+                    if (tr) {
+                        marcarSelecionada(tr.dataset.id, e.target.checked);
+                        indiceAncoraSelecao = indiceDaLinha(tr);
+                    }
                     atualizarEstadoSelecao();
                 }
             });
@@ -2429,7 +2549,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     var id = parseInt(btnDel.dataset.id, 10);
                     var op = btnDel.dataset.op;
                     removerOrdemIndividual(id, op);
+                    return;
                 }
+
+                // Selecao estilo planilha. Ctrl/Cmd+clique alterna uma linha;
+                // Shift+clique marca o intervalo desde a ultima clicada. Clique
+                // simples continua sem efeito na selecao (evita perder o que ja
+                // estava marcado). Duplo clique continua abrindo o editor.
+                if (!e.ctrlKey && !e.metaKey && !e.shiftKey) return;
+                if (e.target.closest('input, button, a, select, textarea')) return;
+
+                var tr = e.target.closest('tr');
+                if (!tr || !tr.dataset.id) return;
+
+                e.preventDefault();
+                if (e.shiftKey) selecionarIntervalo(tr);
+                else alternarSelecaoLinha(tr);
             });
         }
     }
@@ -2437,10 +2572,16 @@ document.addEventListener('DOMContentLoaded', function() {
     var checkTodas = document.getElementById('checkTodas');
     if (checkTodas) {
         checkTodas.addEventListener('change', function() {
-            var checkboxes = document.querySelectorAll('.check-ordem');
-            checkboxes.forEach(function(cb) {
-                cb.checked = checkTodas.checked;
-            });
+            // "Todas" = todas as ordens FILTRADAS (nao so a pagina): a selecao
+            // vive num Set de ids, entao consegue atravessar a paginacao.
+            if (checkTodas.checked) {
+                (listaFiltrada || []).forEach(function(ordem) {
+                    marcarSelecionada(ordem.id, true);
+                });
+            } else {
+                ordensSelecionadas.clear();
+            }
+            indiceAncoraSelecao = null;
             atualizarEstadoSelecao();
         });
     }
@@ -2463,11 +2604,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var btnDesmarcar = document.getElementById('btnDesmarcarTodas');
     if (btnDesmarcar) {
-        btnDesmarcar.addEventListener('click', function() {
-            var checkboxes = document.querySelectorAll('.check-ordem');
-            checkboxes.forEach(function(cb) { cb.checked = false; });
-            atualizarEstadoSelecao();
-        });
+        btnDesmarcar.addEventListener('click', limparSelecao);
     }
 
     // ===== FILTER DRAWER =====

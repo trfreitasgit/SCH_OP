@@ -1289,6 +1289,17 @@ html:not(.dark) .app-sidebar {
   border-left: 3px solid var(--primary);
 }
 
+/* Linha selecionada: Ctrl+clique alterna, Shift+clique marca o intervalo,
+   checkbox tambem reflete o mesmo estado (ver atualizarEstadoSelecao). */
+#tabelaOrdens tbody tr.tr-selecionada {
+  background-color: rgba(249, 115, 22, 0.12);
+  border-left-color: var(--primary);
+}
+
+#tabelaOrdens tbody tr.tr-selecionada:hover {
+  background-color: rgba(249, 115, 22, 0.18) !important;
+}
+
 #tabelaOrdens tbody td {
   /* Padding horizontal 10px - mesma compressao do thead para as 12 colunas */
   padding: 12px 10px;

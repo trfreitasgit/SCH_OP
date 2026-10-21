@@ -210,7 +210,7 @@
                 </div>
                 <div class="toolbar-actions">
                     <!-- MANDATORY BUTTON ID: btnCopiar -->
-                    <button id="btnCopiar" title="Copiar lista de OPs visíveis para a área de transferência" type="button">
+                    <button id="btnCopiar" title="Copiar OPs: usa as ordens marcadas (Ctrl+clique ou Shift+clique); sem seleção copia todas as visíveis" type="button">
                         <span class="material-symbols-outlined">content_copy</span>
                         <span>Copiar OPs para o SAP</span>
                     </button>
@@ -319,6 +319,12 @@
                         <button id="btnAplicarMassa" type="button" class="btn-primary-action" style="padding: 6px 14px;">
                             <span class="material-symbols-outlined" style="font-size: 17px;">done_all</span>
                             <span>Aplicar</span>
+                        </button>
+
+                        <!-- Copia SO as ordens marcadas (Ctrl+clique / Shift+clique / checkbox) -->
+                        <button id="btnCopiarSelecionadas" type="button" class="btn-secondary-action" title="Copiar as OPs selecionadas para o SAP">
+                            <span class="material-symbols-outlined" style="font-size: 17px;">content_copy</span>
+                            <span>Copiar OPs</span>
                         </button>
 
                         <button id="btnExcluirMassa" type="button" class="btn-danger-action" title="Excluir ordens selecionadas">
