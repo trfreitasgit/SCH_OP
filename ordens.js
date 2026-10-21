@@ -314,36 +314,62 @@ function calcularDiferencaDias(dataAberturaISO, diaAnaliseISO) {
     return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 }
 
-function atualizarKPIs(lista) {
-    var total = lista.length;
-    var faltaPagar = 0;
-    var pagasApos48h = 0; // ordens que foram pagas depois de 48 horas (> 2 dias)
-    var pagasNoPrazo = 0; // ordens pagas dentro do prazo (<= 48 horas / <= 2 dias)
+// "12.480 peças" / "1 peça" / "0 peças" - separador de milhar pt-BR.
+function formatarPecas(quantidade) {
+    var numero = Number(quantidade) || 0;
+    return numero.toLocaleString('pt-BR') + (numero === 1 ? ' peça' : ' peças');
+}
+
+// Contagem de ordens e soma de peças de cada card. Recebe a lista ja filtrada:
+// tanto as ordens quanto as pecas seguem os filtros da tela.
+function calcularKpis(lista) {
+    var kpis = {
+        total: lista.length, pecasTotal: 0,
+        faltaPagar: 0, pecasFaltaPagar: 0,
+        pagasApos48h: 0, pecasApos48h: 0, // pagas depois de 48 horas (> 2 dias)
+        pagasNoPrazo: 0, pecasNoPrazo: 0  // pagas dentro do prazo (<= 48 horas / <= 2 dias)
+    };
 
     lista.forEach(function(ordem) {
+        // total_pecas pode vir do SAP como "1.000": parseQuantidade remove o ponto
+        // de milhar. Valor ausente ou invalido nao soma nada.
+        var pecas = parseQuantidade(ordem.total_pecas);
+        if (isNaN(pecas)) pecas = 0;
+        kpis.pecasTotal += pecas;
+
         if (ordem.situacao === 'Falta Pagar') {
-            faltaPagar++;
+            kpis.faltaPagar++;
+            kpis.pecasFaltaPagar += pecas;
         } else if (ordem.situacao === 'Pago' || ordem.dia_analise) {
             var diffDias = calcularDiferencaDias(ordem.data_abertura, ordem.dia_analise);
             if (diffDias !== null) {
                 if (diffDias <= 2) {
-                    pagasNoPrazo++;
+                    kpis.pagasNoPrazo++;
+                    kpis.pecasNoPrazo += pecas;
                 } else {
-                    pagasApos48h++;
+                    kpis.pagasApos48h++;
+                    kpis.pecasApos48h += pecas;
                 }
             }
         }
     });
 
-    var elTotal = document.getElementById('kpi-total-ops');
-    var elFaltaPagar = document.getElementById('kpi-falta-pagar');
-    var elCritico = document.getElementById('kpi-critico');
-    var elPrazo = document.getElementById('kpi-prazo');
+    return kpis;
+}
 
-    if (elTotal) elTotal.innerText = total;
-    if (elFaltaPagar) elFaltaPagar.innerText = faltaPagar;
-    if (elCritico) elCritico.innerText = pagasApos48h;
-    if (elPrazo) elPrazo.innerText = pagasNoPrazo;
+function escreverKpi(idNumero, idPecas, numero, pecas) {
+    var elNumero = document.getElementById(idNumero);
+    var elPecas = document.getElementById(idPecas);
+    if (elNumero) elNumero.innerText = numero;
+    if (elPecas) elPecas.innerText = formatarPecas(pecas);
+}
+
+function atualizarKPIs(lista) {
+    var kpis = calcularKpis(lista);
+    escreverKpi('kpi-total-ops', 'kpi-total-ops-pecas', kpis.total, kpis.pecasTotal);
+    escreverKpi('kpi-falta-pagar', 'kpi-falta-pagar-pecas', kpis.faltaPagar, kpis.pecasFaltaPagar);
+    escreverKpi('kpi-critico', 'kpi-critico-pecas', kpis.pagasApos48h, kpis.pecasApos48h);
+    escreverKpi('kpi-prazo', 'kpi-prazo-pecas', kpis.pagasNoPrazo, kpis.pecasNoPrazo);
 }
 
 function getStatusBadge(situacao) {
