@@ -314,7 +314,12 @@ function calcularDiferencaDias(dataAberturaISO, diaAnaliseISO) {
     return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 }
 
-// "12.480 peças" / "1 peça" / "0 peças" - separador de milhar pt-BR.
+// "12.480" - separador de milhar pt-BR, sem sufixo (a label do card ja diz "Peças").
+function formatarNumero(quantidade) {
+    return (Number(quantidade) || 0).toLocaleString('pt-BR');
+}
+
+// "12.480 peças" / "1 peça" / "0 peças" - usado onde nao ha label na frente.
 function formatarPecas(quantidade) {
     var numero = Number(quantidade) || 0;
     return numero.toLocaleString('pt-BR') + (numero === 1 ? ' peça' : ' peças');
@@ -379,7 +384,8 @@ function escreverKpi(idNumero, idPecas, numero, pecas) {
     var elNumero = document.getElementById(idNumero);
     var elPecas = document.getElementById(idPecas);
     if (elNumero) elNumero.innerText = numero;
-    if (elPecas) elPecas.innerText = formatarPecas(pecas);
+    // Sem o sufixo "peças": a label ao lado do valor ja diz o que e.
+    if (elPecas) elPecas.innerText = formatarNumero(pecas);
 }
 
 function atualizarKPIs(lista) {

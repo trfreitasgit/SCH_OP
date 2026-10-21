@@ -23,7 +23,7 @@ function carregarKpis() {
     const bloco = src.slice(ini, fim);
 
     return new Function(
-        bloco + '\nreturn { calcularKpis, formatarPecas, formatarPontualidade };'
+        bloco + '\nreturn { calcularKpis, formatarPecas, formatarNumero, formatarPontualidade };'
     )();
 }
 
@@ -41,6 +41,13 @@ test('formata quantidade de pecas com separador de milhar pt-BR', () => {
 test('singular so quando for exatamente 1 peca', () => {
     assert.strictEqual(kpis.formatarPecas(1), '1 peça');
     assert.strictEqual(kpis.formatarPecas(2), '2 peças');
+});
+
+test('formatarNumero traz o milhar sem o sufixo (valor do card)', () => {
+    assert.strictEqual(kpis.formatarNumero(12480), '12.480');
+    assert.strictEqual(kpis.formatarNumero(1), '1');
+    assert.strictEqual(kpis.formatarNumero(0), '0');
+    assert.strictEqual(kpis.formatarNumero(null), '0');
 });
 
 // ---------------------------------------------------------------------------

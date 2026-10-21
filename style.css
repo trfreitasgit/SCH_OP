@@ -743,15 +743,33 @@ html:not(.dark) .app-sidebar {
   font-size: 12px;
   line-height: 1.35;
   color: var(--text-subtle);
-  /* Duas linhas reservadas: o texto de prazo quebra em 2 linhas e, sem isso, a
-     linha de peças de um card ficaria mais baixa que a dos outros. */
-  min-height: 2.7em;
+  /* Uma linha so: com nowrap a descricao nunca quebra, entao a linha de pecas
+     fica na mesma altura nos quatro cards (em tela estreita trunca com ...). */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Segunda linha do card: total de peças (soma as ordens contadas acima). */
-.kpi-subtext-pecas {
-  min-height: 0; /* herda de .kpi-subtext, mas aqui e uma linha só */
+/* Linha de pecas do card: label clara atras do numero. */
+.kpi-pecas {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: -2px; /* cola no texto de cima */
+}
+
+.kpi-pecas-label {
   font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle);
+}
+
+.kpi-pecas-valor {
+  font-family: var(--font-mono);
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;

@@ -35,6 +35,7 @@ const parseQuantidade = (valor) => {
     return parseInt(texto.replace(/\./g, '').split(',')[0], 10);
 };
 const formatarPecas = (n) => (Number(n) || 0).toLocaleString('pt-BR') + (Number(n) === 1 ? ' peça' : ' peças');
+const formatarNumero = (n) => (Number(n) || 0).toLocaleString('pt-BR');
 
 const diffDias = (abertura, analise) => {
     if (!abertura || !analise) return null;
@@ -159,12 +160,16 @@ const lerCards = () => {
         const cards = await page.evaluate(lerCards);
 
         check('card Total em Fila: numero de ordens', cards.total === String(esperado.total), `tela=${cards.total} api=${esperado.total}`);
-        check('card Total em Fila: pecas somadas', cards.totalPecas === formatarPecas(esperado.pecasTotal), `tela=${cards.totalPecas} api=${formatarPecas(esperado.pecasTotal)}`);
+        check('card Total em Fila: pecas somadas', cards.totalPecas === formatarNumero(esperado.pecasTotal), `tela=${cards.totalPecas} api=${formatarNumero(esperado.pecasTotal)}`);
         check('card Falta Pagar: numero de ordens', cards.faltaPagar === String(esperado.faltaPagar), `tela=${cards.faltaPagar} api=${esperado.faltaPagar}`);
-        check('card Falta Pagar: pecas somadas', cards.faltaPagarPecas === formatarPecas(esperado.pecasFaltaPagar), `tela=${cards.faltaPagarPecas} api=${formatarPecas(esperado.pecasFaltaPagar)}`);
-        check('card Pagas no Prazo: pecas somadas', cards.prazoPecas === formatarPecas(esperado.pecasPrazo), `tela=${cards.prazoPecas} api=${formatarPecas(esperado.pecasPrazo)}`);
-        check('card Pagas apos 48h: pecas somadas', cards.criticoPecas === formatarPecas(esperado.pecasCritico), `tela=${cards.criticoPecas} api=${formatarPecas(esperado.pecasCritico)}`);
-        check('pecas seguem o separador pt-BR', /^\d{1,3}(\.\d{3})* (peça|peças)$/.test(cards.faltaPagarPecas || ''), cards.faltaPagarPecas);
+        check('card Falta Pagar: pecas somadas', cards.faltaPagarPecas === formatarNumero(esperado.pecasFaltaPagar), `tela=${cards.faltaPagarPecas} api=${formatarNumero(esperado.pecasFaltaPagar)}`);
+        check('card Pagas no Prazo: pecas somadas', cards.prazoPecas === formatarNumero(esperado.pecasPrazo), `tela=${cards.prazoPecas} api=${formatarNumero(esperado.pecasPrazo)}`);
+        check('card Pagas apos 48h: pecas somadas', cards.criticoPecas === formatarNumero(esperado.pecasCritico), `tela=${cards.criticoPecas} api=${formatarNumero(esperado.pecasCritico)}`);
+        check('pecas do card seguem o separador pt-BR (sem sufixo)', /^\d{1,3}(\.\d{3})*$/.test(cards.faltaPagarPecas || ''), cards.faltaPagarPecas);
+        check('label "Peças" na frente do valor', await page.evaluate(() => {
+            const labels = Array.from(document.querySelectorAll('.kpi-pecas-label'));
+            return labels.length === 4 && labels.every((l) => /peças/i.test(l.textContent));
+        }), '');
 
         console.log('\n== faixa de resumo: total pago ==');
         check('faixa: total pago = todas as pagas', cards.resumoPagas === String(esperado.pagas), `tela=${cards.resumoPagas} api=${esperado.pagas}`);
@@ -194,8 +199,8 @@ const lerCards = () => {
 
         const filtrado = await page.evaluate(lerCards);
         check('busca por 1 OP: card Falta Pagar = 1', filtrado.faltaPagar === '1', filtrado.faltaPagar);
-        check('busca por 1 OP: pecas = 4.321', filtrado.faltaPagarPecas === '4.321 peças', filtrado.faltaPagarPecas);
-        check('busca por 1 OP: total tambem filtra', filtrado.total === '1' && filtrado.totalPecas === '4.321 peças', filtrado.total + ' / ' + filtrado.totalPecas);
+        check('busca por 1 OP: pecas = 4.321', filtrado.faltaPagarPecas === '4.321', filtrado.faltaPagarPecas);
+        check('busca por 1 OP: total tambem filtra', filtrado.total === '1' && filtrado.totalPecas === '4.321', filtrado.total + ' / ' + filtrado.totalPecas);
         check('busca por 1 OP em aberto: faixa zera o pago', filtrado.resumoPagas === '0' && filtrado.resumoPecasPagas === '0 peças' && filtrado.resumoPontualidade === '—', JSON.stringify({ p: filtrado.resumoPagas, q: filtrado.resumoPecasPagas, pct: filtrado.resumoPontualidade }));
 
         console.log('\n== pecas acompanham o filtro de setor ==');
@@ -216,7 +221,7 @@ const lerCards = () => {
         await esperar(1000);
 
         const semSetor = await page.evaluate(lerCards);
-        check('sem setor selecionado: zero ordens e "0 peças"', semSetor.total === '0' && semSetor.totalPecas === '0 peças' && semSetor.faltaPagarPecas === '0 peças', JSON.stringify(semSetor));
+        check('sem setor selecionado: zero ordens e "0 peças"', semSetor.total === '0' && semSetor.totalPecas === '0' && semSetor.faltaPagarPecas === '0', JSON.stringify(semSetor));
         check('sem setor selecionado: faixa de pago zera', semSetor.resumoPagas === '0' && semSetor.resumoPecasPagas === '0 peças' && semSetor.resumoPontualidade === '—', JSON.stringify({ p: semSetor.resumoPagas, q: semSetor.resumoPecasPagas, pct: semSetor.resumoPontualidade }));
         check('cards voltam ao normal ao reativar os setores', antesSetor.total !== '0', 'antes=' + antesSetor.total);
         check('nenhum dialogo de erro', dialogos.length === 0, dialogos.join(' | '));
