@@ -1465,6 +1465,18 @@ document.querySelectorAll('[data-campo]').forEach(function (cabecalho) {
 // ==========================================================================
 // TAREFA 1: EDIÇÃO ESTILO PLANILHA (INLINE)
 // ==========================================================================
+// Prioridades que o editor inline oferece (mesmas do modal de cadastro).
+var PRIORIDADES_EDITAVEIS = ['Exportacao', 'MWM', 'KS', 'Marelli', 'Pendencia Comercial', 'Linha Pesada', 'MRP', 'Tryout'];
+
+// Prioridade vazia significa "sem prioridade" no banco (NULL), nao string vazia.
+// Usada no PUT e na comparacao de igualdade: null e '' precisam contar como o
+// mesmo valor, senao limpar uma prioridade que ja esta vazia geraria requisicao.
+function normalizarPrioridadeEditada(valor) {
+    if (valor === null || valor === undefined) return null;
+    var texto = String(valor).trim();
+    return texto === '' ? null : texto;
+}
+
 function iniciarEdicaoCelula(td) {
     esconderTooltipObs(); // o balao nao pode ficar aberto sobre o editor inline
 
@@ -1531,10 +1543,17 @@ function iniciarEdicaoCelula(td) {
     } else if (coluna === 'prioridade') {
         editor = document.createElement('select');
         editor.className = 'cell-editor-select';
-        ['Exportacao', 'MWM', 'KS', 'Marelli', 'Pendencia Comercial', 'Linha Pesada', 'MRP', 'Tryout'].forEach(function(val) {
+        // A primeira opcao limpa a prioridade (vira NULL no banco). Se a ordem
+        // tiver um valor fora da lista, ele entra no fim para nao desaparecer
+        // da tela so porque o seletor foi aberto.
+        var opcoesPrioridade = [''].concat(PRIORIDADES_EDITAVEIS);
+        if (valorAtual && opcoesPrioridade.indexOf(valorAtual) === -1) {
+            opcoesPrioridade.push(valorAtual);
+        }
+        opcoesPrioridade.forEach(function(val) {
             var opt = document.createElement('option');
             opt.value = val;
-            opt.textContent = val;
+            opt.textContent = val === '' ? '- Limpar prioridade' : val;
             if (val === valorAtual) opt.selected = true;
             editor.appendChild(opt);
         });
@@ -1594,6 +1613,11 @@ function cancelarEdicao(td) {
 
 async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
     var novoValor = editor.value;
+
+    // Prioridade vazia = sem prioridade: o banco guarda NULL, nao string vazia.
+    if (coluna === 'prioridade') {
+        novoValor = normalizarPrioridadeEditada(novoValor);
+    }
 
     if (coluna === 'turno') {
         // Mantem a data do pagamento e troca a hora para o inicio do turno escolhido.
@@ -1658,9 +1682,12 @@ async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
     // Se o valor for idêntico ao original, apenas cancela edição.
     // dia_analise compara o INSTANTE (ver mesmaDataAnalise): comparar so os 10
     // primeiros caracteres descartava em silencio a troca de turno no mesmo dia.
+    // prioridade compara normalizada: null e '' sao o mesmo "sem prioridade".
     var igual = coluna === 'dia_analise'
         ? mesmaDataAnalise(valorOriginal, novoValor)
-        : (valorOriginal ? String(valorOriginal).substring(0, 10) : '') === (novoValor ? String(novoValor).substring(0, 10) : '');
+        : coluna === 'prioridade'
+            ? normalizarPrioridadeEditada(valorOriginal) === normalizarPrioridadeEditada(novoValor)
+            : (valorOriginal ? String(valorOriginal).substring(0, 10) : '') === (novoValor ? String(novoValor).substring(0, 10) : '');
     if (igual) {
         cancelarEdicao(td);
         return;
