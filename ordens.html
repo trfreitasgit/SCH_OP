@@ -832,6 +832,63 @@
             </div>
         </section>
 
+        <!-- Filtro de periodo de ANALISE: dia_analise (data do pagamento).
+             Comparado por dia no fuso da fabrica (America/Sao_Paulo). -->
+        <section class="filter-section">
+            <span class="filter-section-label">Período de Análise</span>
+            <div class="filter-preset-quick">
+                <button class="filter-preset-quick-btn" data-preset-analise="today" type="button">
+                    <span class="material-symbols-outlined">today</span>
+                    <span>Hoje</span>
+                </button>
+                <button class="filter-preset-quick-btn" data-preset-analise="7days" type="button">
+                    <span class="material-symbols-outlined">date_range</span>
+                    <span>Últimos 7 dias</span>
+                </button>
+                <button class="filter-preset-quick-btn" data-preset-analise="month" type="button">
+                    <span class="material-symbols-outlined">calendar_month</span>
+                    <span>Este Mês</span>
+                </button>
+            </div>
+            <div class="filter-date-range">
+                <input type="date" id="filter-analise-start" class="filter-date-input" placeholder="Início">
+                <input type="date" id="filter-analise-end" class="filter-date-input" placeholder="Fim">
+            </div>
+        </section>
+
+        <!-- Filtro de TURNO do pagamento: derivado de dia_analise.
+             O wrapper NAO usa .filter-status de proposito: aquele seletor tem
+             listener proprio que escreveria em filtrosAvancados.status. -->
+        <section class="filter-section">
+            <span class="filter-section-label">Turno do Pagamento</span>
+            <div class="filter-options filter-turno">
+                <label class="filter-option filter-status-option">
+                    <input type="checkbox" class="filter-checkbox filter-turno-checkbox" value="T1" checked>
+                    <span class="filter-status-dot t1"></span>
+                    <span>T1 · 05:20–13:39</span>
+                    <span class="filter-status-count" id="count-turno-t1">0</span>
+                </label>
+                <label class="filter-option filter-status-option">
+                    <input type="checkbox" class="filter-checkbox filter-turno-checkbox" value="T2" checked>
+                    <span class="filter-status-dot t2"></span>
+                    <span>T2 · 13:40–21:59</span>
+                    <span class="filter-status-count" id="count-turno-t2">0</span>
+                </label>
+                <label class="filter-option filter-status-option">
+                    <input type="checkbox" class="filter-checkbox filter-turno-checkbox" value="T3" checked>
+                    <span class="filter-status-dot t3"></span>
+                    <span>T3 · 22:00–05:19</span>
+                    <span class="filter-status-count" id="count-turno-t3">0</span>
+                </label>
+                <label class="filter-option filter-status-option">
+                    <input type="checkbox" class="filter-checkbox filter-turno-checkbox" value="SEM" checked>
+                    <span class="filter-status-dot slate"></span>
+                    <span>Sem turno (sem análise)</span>
+                    <span class="filter-status-count" id="count-turno-sem">0</span>
+                </label>
+            </div>
+        </section>
+
         <!-- Apply & Reset Buttons -->
         <div class="filter-actions">
             <button id="btn-apply-filters" class="btn-primary-action" style="width: 100%; justify-content: center;">

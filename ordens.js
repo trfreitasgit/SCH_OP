@@ -131,7 +131,12 @@ var filtrosAvancados = {
     status: { 'Falta Pagar': true, 'Pago': true, 'Encerrado': true },
     setores: { 'Montagem': true, 'Subconjunto': true, 'Celula': true, 'BCM': true, 'Importada': true, 'Usinagem': true },
     dataInicio: null,
-    dataFim: null
+    dataFim: null,
+    // Periodo de ANALISE (dia_analise = data do pagamento), dias 'AAAA-MM-DD' no fuso da fabrica.
+    analiseInicio: null,
+    analiseFim: null,
+    // Turno do pagamento derivado de dia_analise; SEM = ordem sem analise.
+    turnos: { T1: true, T2: true, T3: true, SEM: true }
 };
 
 // Estado da paginação
@@ -237,6 +242,73 @@ function obterTurno(diaAnalise) {
     if (minutos >= TURNO_T1_INICIO && minutos < TURNO_T2_INICIO) return 'T1';
     if (minutos >= TURNO_T2_INICIO && minutos < TURNO_T3_INICIO) return 'T2';
     return 'T3';
+}
+
+// ==========================================================================
+// PERIODO DE ANALISE (filtro do drawer)
+// dia_analise e timestamptz: o recorte e por DIA no fuso da fabrica. Cortar a
+// string (substring(0,10)) jogaria um pagamento das 22h de 15/10 para 16/10,
+// porque em UTC ele ja e o dia seguinte.
+// ==========================================================================
+
+// dia_analise -> 'AAAA-MM-DD' no fuso da fabrica (null quando nao ha data valida).
+function dataAnaliseFabrica(diaAnalise) {
+    var data = obterDataFabrica(diaAnalise);
+    if (!data) return null;
+
+    // Data pura malformada (ex.: '2026-13-01') passa pelo formato mas nao e dia
+    // real; comparar isso com o intervalo daria resultado silenciosamente errado.
+    var mes = parseInt(data.mes, 10);
+    var dia = parseInt(data.dia, 10);
+    if (!(mes >= 1 && mes <= 12) || !(dia >= 1 && dia <= 31)) return null;
+
+    return data.ano + '-' + data.mes + '-' + data.dia;
+}
+
+// 'AAAA-MM-DD' de hoje no fuso da fabrica. Os presets NAO podem depender do
+// fuso do navegador (um notebook em UTC as 22h ainda esta no dia anterior em SP).
+function hojeFabrica() {
+    if (!_fmtDataFabrica) {
+        _fmtDataFabrica = new Intl.DateTimeFormat('en-CA', {
+            timeZone: TZ_FABRICA, year: 'numeric', month: '2-digit', day: '2-digit'
+        });
+    }
+    var partes = _fmtDataFabrica.formatToParts(new Date());
+    var campos = {};
+    for (var i = 0; i < partes.length; i++) campos[partes[i].type] = partes[i].value;
+    return campos.year + '-' + campos.month + '-' + campos.day;
+}
+
+// Intervalo dos presets de analise, em dias 'AAAA-MM-DD'.
+//   today -> hoje
+//   7days -> hoje-6 ate hoje
+//   month -> dia 1 ate hoje (nunca joga o fim para o futuro)
+// Aritmetica em UTC de proposito: Date.UTC nao sofre deslocamento de fuso.
+function calcularPeriodoAnalise(preset, hoje) {
+    var base = /^\d{4}-\d{2}-\d{2}$/.test(String(hoje || '')) ? hoje : hojeFabrica();
+    var partes = base.split('-');
+    var ano = parseInt(partes[0], 10);
+    var mes = parseInt(partes[1], 10);
+    var dia = parseInt(partes[2], 10);
+
+    var diaUTC = function (d) {
+        return d.getUTCFullYear() + '-' +
+            String(d.getUTCMonth() + 1).padStart(2, '0') + '-' +
+            String(d.getUTCDate()).padStart(2, '0');
+    };
+
+    var fim = new Date(Date.UTC(ano, mes - 1, dia));
+
+    if (preset === 'today') {
+        return { inicio: diaUTC(fim), fim: diaUTC(fim) };
+    }
+    if (preset === '7days') {
+        return { inicio: diaUTC(new Date(Date.UTC(ano, mes - 1, dia - 6))), fim: diaUTC(fim) };
+    }
+    if (preset === 'month') {
+        return { inicio: diaUTC(new Date(Date.UTC(ano, mes - 1, 1))), fim: diaUTC(fim) };
+    }
+    return null;
 }
 
 // Hora inicial de cada turno. Ao trocar o turno de uma ordem, e essa hora que
@@ -2273,6 +2345,20 @@ function passaFiltrosAvancados(ordem) {
         if (filtrosAvancados.dataInicio && dataAbertura < filtrosAvancados.dataInicio) return false;
         if (filtrosAvancados.dataFim && dataAbertura > filtrosAvancados.dataFim) return false;
     }
+
+    // Turno do pagamento: derivado de dia_analise. Ordem sem analise conta como
+    // 'SEM' e sai quando o usuario filtra por turno (a menos que "Sem turno" esteja marcado).
+    var turno = obterTurno(ordem.dia_analise) || 'SEM';
+    if (filtrosAvancados.turnos && filtrosAvancados.turnos[turno] === false) return false;
+
+    // Periodo de analise: recorte por DIA no fuso da fabrica. Com o filtro ativo,
+    // ordem sem dia_analise e excluida (padrao Excel: linha sem data nao entra no intervalo).
+    if (filtrosAvancados.analiseInicio || filtrosAvancados.analiseFim) {
+        var diaAnalise = dataAnaliseFabrica(ordem.dia_analise);
+        if (!diaAnalise) return false;
+        if (filtrosAvancados.analiseInicio && diaAnalise < filtrosAvancados.analiseInicio) return false;
+        if (filtrosAvancados.analiseFim && diaAnalise > filtrosAvancados.analiseFim) return false;
+    }
     return true;
 }
 
@@ -2349,6 +2435,9 @@ function resetarFiltrosAvancados() {
     filtrosAvancados.setores = { 'Montagem': true, 'Subconjunto': true, 'Celula': true, 'BCM': true, 'Importada': true, 'Usinagem': true };
     filtrosAvancados.dataInicio = null;
     filtrosAvancados.dataFim = null;
+    filtrosAvancados.analiseInicio = null;
+    filtrosAvancados.analiseFim = null;
+    filtrosAvancados.turnos = { T1: true, T2: true, T3: true, SEM: true };
 
     // Reset ALL priority checkboxes (across all tabs)
     document.querySelectorAll('.filter-group .filter-checkbox, .filter-priority-list .filter-checkbox').forEach(function(cb) {
@@ -2360,12 +2449,21 @@ function resetarFiltrosAvancados() {
     document.querySelectorAll('.filter-sector .filter-checkbox').forEach(function(cb) {
         cb.checked = true;
     });
+    document.querySelectorAll('.filter-turno .filter-checkbox').forEach(function(cb) {
+        cb.checked = true;
+    });
 
     // Reset date inputs
     var filterDateStart = document.getElementById('filter-date-start');
     var filterDateEnd = document.getElementById('filter-date-end');
     if (filterDateStart) filterDateStart.value = '';
     if (filterDateEnd) filterDateEnd.value = '';
+
+    // Reset do periodo de analise (inputs proprios, separados da abertura)
+    var filterAnaliseStart = document.getElementById('filter-analise-start');
+    var filterAnaliseEnd = document.getElementById('filter-analise-end');
+    if (filterAnaliseStart) filterAnaliseStart.value = '';
+    if (filterAnaliseEnd) filterAnaliseEnd.value = '';
 
     // Resetar os filtros avancados devolve a base completa, mas o filtro rapido
     // do campo #table-search continua valendo: os filtros sao cumulativos.
@@ -2374,7 +2472,7 @@ function resetarFiltrosAvancados() {
 
 function atualizarContadoresFiltros() {
     // Atualiza contadores nas labels dos filtros - usa listaFiltrada (filtrada visível)
-    var counts = { prioridades: {}, status: {}, setores: {} };
+    var counts = { prioridades: {}, status: {}, setores: {}, turnos: {} };
     var sourceList = (typeof listaFiltrada !== 'undefined' && listaFiltrada) ? listaFiltrada : ordensCarregadas;
 
     sourceList.forEach(function(ordem) {
@@ -2387,6 +2485,11 @@ function atualizarContadoresFiltros() {
 
         if (counts.setores[ordem.setor] === undefined) counts.setores[ordem.setor] = 0;
         counts.setores[ordem.setor]++;
+
+        // Turno derivado de dia_analise; sem analise -> 'SEM'
+        var turnoKey = obterTurno(ordem.dia_analise) || 'SEM';
+        if (counts.turnos[turnoKey] === undefined) counts.turnos[turnoKey] = 0;
+        counts.turnos[turnoKey]++;
     });
 
     // Atualiza elementos DOM - grupos de prioridade
@@ -2422,6 +2525,12 @@ function atualizarContadoresFiltros() {
     Object.keys(counts.status).forEach(function(key) {
         var el = document.getElementById('count-status-' + key.toLowerCase().replace(' ', '-'));
         if (el) el.innerText = counts.status[key];
+    });
+
+    // Turno counts (filtered visible): sempre escreve os quatro, inclusive 0.
+    ['T1', 'T2', 'T3', 'SEM'].forEach(function(key) {
+        var el = document.getElementById('count-turno-' + key.toLowerCase());
+        if (el) el.innerText = counts.turnos[key] || 0;
     });
 
     // Sector counts (filtered visible) - optional
@@ -2729,6 +2838,50 @@ document.addEventListener('DOMContentLoaded', function() {
             aplicarFiltrosAvancados();
         });
     });
+
+    // ===== TURNO DO PAGAMENTO (T1/T2/T3/SEM) =====
+    // Filtro imediato, mesmo comportamento de situacao/setor. O seletor e
+    // escopado em .filter-turno: .filter-status tem um listener proprio acima.
+    document.querySelectorAll('.filter-turno .filter-checkbox').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            filtrosAvancados.turnos[this.value] = this.checked;
+            aplicarFiltrosAvancados();
+        });
+    });
+
+    // ===== PERIODO DE ANALISE =====
+    // Presets calculados no fuso da fabrica e aplicados na hora.
+    document.querySelectorAll('[data-preset-analise]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var periodo = calcularPeriodoAnalise(this.dataset.presetAnalise, hojeFabrica());
+            if (!periodo) return;
+
+            filtrosAvancados.analiseInicio = periodo.inicio;
+            filtrosAvancados.analiseFim = periodo.fim;
+
+            var analiseStart = document.getElementById('filter-analise-start');
+            var analiseEnd = document.getElementById('filter-analise-end');
+            if (analiseStart) analiseStart.value = periodo.inicio;
+            if (analiseEnd) analiseEnd.value = periodo.fim;
+
+            aplicarFiltrosAvancados();
+        });
+    });
+
+    // Inputs manuais: so gravam no estado; o recorte acontece no "Aplicar Filtros"
+    // (mesma regra do periodo de abertura).
+    var filterAnaliseStart = document.getElementById('filter-analise-start');
+    var filterAnaliseEnd = document.getElementById('filter-analise-end');
+    if (filterAnaliseStart) {
+        filterAnaliseStart.addEventListener('change', function() {
+            filtrosAvancados.analiseInicio = this.value || null;
+        });
+    }
+    if (filterAnaliseEnd) {
+        filterAnaliseEnd.addEventListener('change', function() {
+            filtrosAvancados.analiseFim = this.value || null;
+        });
+    }
 
     // ===== DATE PRESET QUICK BUTTONS =====
     var filterDatePresetBtns = document.querySelectorAll('.filter-preset-quick-btn[data-preset-date]');

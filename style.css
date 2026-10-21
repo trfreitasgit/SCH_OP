@@ -2690,6 +2690,22 @@ html:not(.dark) .priority-branca {
 .filter-status-dot.red { background: var(--status-red); }
 .filter-status-dot.green { background: var(--status-green); }
 .filter-status-dot.slate { background: var(--text-muted); }
+/* Turno: mesma cor do badge da coluna TURNO (fonte unica: --turno-t*) */
+.filter-status-dot.t1 { background: var(--turno-t1); }
+.filter-status-dot.t2 { background: var(--turno-t2); }
+.filter-status-dot.t3 { background: var(--turno-t3); }
+
+/* Rotulo do turno pode ser longo ("Sem turno (sem analise)"): deixa quebrar
+   sem empurrar o contador para fora do card. */
+.filter-options.filter-turno .filter-status-option {
+  gap: 10px;
+  align-items: center;
+}
+
+.filter-options.filter-turno .filter-status-option > span:nth-child(3) {
+  flex: 1;
+  line-height: 1.3;
+}
 
 .filter-status-count {
   font-family: var(--font-mono);
