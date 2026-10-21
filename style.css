@@ -644,8 +644,7 @@ html:not(.dark) .app-sidebar {
 
 /* ==========================================================================
    KPI TELEMETRY CARDS (TOP 4 CARDS)
-   ========================================================================== */
-.kpi-grid {
+   ========================================================================== */.kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 16px;
@@ -756,6 +755,50 @@ html:not(.dark) .app-sidebar {
   font-weight: 600;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* Faixa fina abaixo dos KPIs: total pago e pontualidade sem virar um quinto card.
+   O margin-top negativo aproxima a faixa dos cards (o container usa gap 24px). */
+.kpi-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin-top: -12px;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-summary-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.kpi-summary-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle);
+}
+
+.kpi-summary-value strong {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.kpi-summary-dot {
+  color: var(--text-subtle);
+}
+
+.kpi-summary-divider {
+  width: 1px;
+  height: 14px;
+  background-color: var(--outline-light);
 }
 
 .kpi-icon-box {

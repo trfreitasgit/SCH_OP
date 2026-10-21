@@ -23,7 +23,7 @@ function carregarKpis() {
     const bloco = src.slice(ini, fim);
 
     return new Function(
-        bloco + '\nreturn { calcularKpis, formatarPecas };'
+        bloco + '\nreturn { calcularKpis, formatarPecas, formatarPontualidade };'
     )();
 }
 
@@ -50,6 +50,7 @@ test('lista vazia zera ordens e pecas', () => {
     assert.deepStrictEqual(kpis.calcularKpis([]), {
         total: 0, pecasTotal: 0,
         faltaPagar: 0, pecasFaltaPagar: 0,
+        pagas: 0, pecasPagas: 0, pagasSemData: 0, pecasSemData: 0,
         pagasApos48h: 0, pecasApos48h: 0,
         pagasNoPrazo: 0, pecasNoPrazo: 0
     });
@@ -108,4 +109,83 @@ test('ordem paga sem dia_analise nao entra em nenhum card de prazo', () => {
     assert.strictEqual(r.pagasNoPrazo, 0);
     assert.strictEqual(r.pagasApos48h, 0);
     assert.strictEqual(r.pecasTotal, 70);
+});
+
+// ---------------------------------------------------------------------------
+// Total pago - independe de ter ficado dentro ou fora do prazo de 48h
+// ---------------------------------------------------------------------------
+test('total pago soma os dois cards de prazo', () => {
+    const lista = [
+        { situacao: 'Pago', total_pecas: 100, data_abertura: '2026-10-10', dia_analise: '2026-10-12T09:00:00-03:00' },
+        { situacao: 'Pago', total_pecas: 200, data_abertura: '2026-10-10', dia_analise: '2026-10-14T09:00:00-03:00' }
+    ];
+    const r = kpis.calcularKpis(lista);
+    assert.strictEqual(r.pagas, 2);
+    assert.strictEqual(r.pecasPagas, 300);
+    assert.strictEqual(r.pagasSemData, 0);
+});
+
+test('total pago inclui ordem Pago sem data de pagamento', () => {
+    const lista = [
+        { situacao: 'Pago', total_pecas: 70, data_abertura: '2026-10-10' },
+        { situacao: 'Pago', total_pecas: 30, data_abertura: '2026-10-10', dia_analise: '2026-10-11T09:00:00-03:00' }
+    ];
+    const r = kpis.calcularKpis(lista);
+    assert.strictEqual(r.pagas, 2);
+    assert.strictEqual(r.pecasPagas, 100);
+    assert.strictEqual(r.pagasSemData, 1); // nao da para classificar o prazo
+});
+
+test('total pago inclui ordem paga sem data de abertura', () => {
+    const lista = [{ situacao: 'Pago', total_pecas: 40, dia_analise: '2026-10-11T09:00:00-03:00' }];
+    const r = kpis.calcularKpis(lista);
+    assert.strictEqual(r.pagas, 1);
+    assert.strictEqual(r.pecasPagas, 40);
+    assert.strictEqual(r.pagasSemData, 1);
+});
+
+test('ordem com dia_analise conta como paga mesmo com situacao nula', () => {
+    const lista = [{ situacao: null, total_pecas: 25, data_abertura: '2026-10-10', dia_analise: '2026-10-10T09:00:00-03:00' }];
+    const r = kpis.calcularKpis(lista);
+    assert.strictEqual(r.pagas, 1);
+    assert.strictEqual(r.pagasNoPrazo, 1);
+    assert.strictEqual(r.pagasSemData, 0);
+});
+
+test('falta pagar nao entra no total pago', () => {
+    const lista = [{ situacao: 'Falta Pagar', total_pecas: 500, data_abertura: '2026-10-10' }];
+    const r = kpis.calcularKpis(lista);
+    assert.strictEqual(r.pagas, 0);
+    assert.strictEqual(r.pecasPagas, 0);
+});
+
+test('invariante: pagas = no prazo + apos 48h + sem data', () => {
+    const lista = [
+        { situacao: 'Pago', total_pecas: 100, data_abertura: '2026-10-10', dia_analise: '2026-10-11T09:00:00-03:00' },
+        { situacao: 'Pago', total_pecas: 200, data_abertura: '2026-10-10', dia_analise: '2026-10-15T09:00:00-03:00' },
+        { situacao: 'Pago', total_pecas: 300, data_abertura: '2026-10-10' },
+        { situacao: 'Pago', total_pecas: 400, dia_analise: '2026-10-11T09:00:00-03:00' },
+        { situacao: 'Falta Pagar', total_pecas: 999, data_abertura: '2026-10-10' }
+    ];
+    const r = kpis.calcularKpis(lista);
+    assert.strictEqual(r.pagas, 4);
+    assert.strictEqual(r.pagas, r.pagasNoPrazo + r.pagasApos48h + r.pagasSemData);
+    assert.strictEqual(r.pecasPagas, 1000);
+    assert.strictEqual(r.pecasPagas, r.pecasNoPrazo + r.pecasApos48h + r.pecasSemData);
+    assert.strictEqual(r.pecasSemData, 700);
+});
+
+// ---------------------------------------------------------------------------
+// Texto da faixa de resumo
+// ---------------------------------------------------------------------------
+test('pontualidade usa so as ordens com data para classificar', () => {
+    const lista = [
+        { situacao: 'Pago', total_pecas: 10, data_abertura: '2026-10-10', dia_analise: '2026-10-11T09:00:00-03:00' },
+        { situacao: 'Pago', total_pecas: 10, data_abertura: '2026-10-10', dia_analise: '2026-10-11T09:00:00-03:00' },
+        { situacao: 'Pago', total_pecas: 10, data_abertura: '2026-10-10', dia_analise: '2026-10-10T09:00:00-03:00' },
+        { situacao: 'Pago', total_pecas: 10, data_abertura: '2026-10-10', dia_analise: '2026-10-15T09:00:00-03:00' },
+        { situacao: 'Pago', total_pecas: 10, data_abertura: '2026-10-10' }
+    ];
+    assert.strictEqual(kpis.formatarPontualidade(kpis.calcularKpis(lista)), '75%');
+    assert.strictEqual(kpis.formatarPontualidade({ pagasNoPrazo: 0, pagasApos48h: 0 }), '—');
 });

@@ -45,7 +45,7 @@ const diffDias = (abertura, analise) => {
 };
 
 const contar = (lista) => {
-    const r = { total: lista.length, pecasTotal: 0, faltaPagar: 0, pecasFaltaPagar: 0, prazo: 0, pecasPrazo: 0, critico: 0, pecasCritico: 0 };
+    const r = { total: lista.length, pecasTotal: 0, faltaPagar: 0, pecasFaltaPagar: 0, prazo: 0, pecasPrazo: 0, critico: 0, pecasCritico: 0, pagas: 0, pecasPagas: 0, semData: 0 };
     lista.forEach((o) => {
         const p = parseQuantidade(o.total_pecas);
         const pecas = isNaN(p) ? 0 : p;
@@ -53,10 +53,13 @@ const contar = (lista) => {
         if (o.situacao === 'Falta Pagar') {
             r.faltaPagar++; r.pecasFaltaPagar += pecas;
         } else if (o.situacao === 'Pago' || o.dia_analise) {
+            r.pagas++; r.pecasPagas += pecas;
             const d = diffDias(o.data_abertura, o.dia_analise);
             if (d !== null) {
                 if (d <= 2) { r.prazo++; r.pecasPrazo += pecas; }
                 else { r.critico++; r.pecasCritico += pecas; }
+            } else {
+                r.semData++;
             }
         }
     });
@@ -76,7 +79,11 @@ const lerCards = () => {
         critico: ler('kpi-critico'),
         criticoPecas: ler('kpi-critico-pecas'),
         prazo: ler('kpi-prazo'),
-        prazoPecas: ler('kpi-prazo-pecas')
+        prazoPecas: ler('kpi-prazo-pecas'),
+        resumoPagas: ler('resumo-pagas'),
+        resumoPecasPagas: ler('resumo-pecas-pagas'),
+        resumoPontualidade: ler('resumo-pontualidade'),
+        resumoSplit: ler('resumo-split-prazo')
     };
 };
 
@@ -99,7 +106,24 @@ const lerCards = () => {
     })).json();
     const id = criada.id;
     if (!id) { console.error('nao criou a ordem:', criada); process.exit(1); }
-    console.log('ordem de teste id=' + id + ' (' + tag + ', 4321 pecas)\n');
+
+    // Segunda ordem: Paga. A rota preenche dia_analise com agora() quando a
+    // situacao e 'Pago', entao esta cai em "fora do prazo" (abertura 10/10).
+    // Ordem paga SEM data so existe como legado, por isso esse caso fica nos
+    // testes unitarios.
+    const tagPaga = 'G' + String(Date.now() % 100000);
+    const criadaPaga = await (await fetch(`${BASE}/ordens`, {
+        method: 'POST', headers: H,
+        body: JSON.stringify({
+            numero_op: tagPaga, total_pecas: 7, setor: 'Montagem',
+            data_abertura: '2026-10-10', situacao: 'Pago'
+        })
+    })).json();
+    const idPaga = criadaPaga.id;
+    if (!idPaga) { console.error('nao criou a ordem paga:', criadaPaga); process.exit(1); }
+
+    console.log('ordem de teste id=' + id + ' (' + tag + ', 4321 pecas, falta pagar)');
+    console.log('ordem de teste id=' + idPaga + ' (' + tagPaga + ', 7 pecas, paga)\n');
 
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'], protocolTimeout: 180000 });
     const page = await browser.newPage();
@@ -142,6 +166,24 @@ const lerCards = () => {
         check('card Pagas apos 48h: pecas somadas', cards.criticoPecas === formatarPecas(esperado.pecasCritico), `tela=${cards.criticoPecas} api=${formatarPecas(esperado.pecasCritico)}`);
         check('pecas seguem o separador pt-BR', /^\d{1,3}(\.\d{3})* (peça|peças)$/.test(cards.faltaPagarPecas || ''), cards.faltaPagarPecas);
 
+        console.log('\n== faixa de resumo: total pago ==');
+        check('faixa: total pago = todas as pagas', cards.resumoPagas === String(esperado.pagas), `tela=${cards.resumoPagas} api=${esperado.pagas}`);
+        check('faixa: pecas pagas somadas', cards.resumoPecasPagas === formatarPecas(esperado.pecasPagas), `tela=${cards.resumoPecasPagas} api=${formatarPecas(esperado.pecasPagas)}`);
+        check(
+            'faixa: total pago = no prazo + fora + sem data',
+            esperado.pagas === esperado.prazo + esperado.critico + esperado.semData,
+            `${esperado.pagas} = ${esperado.prazo} + ${esperado.critico} + ${esperado.semData}`
+        );
+
+        const pontualidadeEsperada = (esperado.prazo + esperado.critico)
+            ? Math.round((esperado.prazo / (esperado.prazo + esperado.critico)) * 100) + '%'
+            : '—';
+        check('faixa: pontualidade', cards.resumoPontualidade === pontualidadeEsperada, `tela=${cards.resumoPontualidade} api=${pontualidadeEsperada}`);
+
+        const splitEsperado = esperado.prazo + ' no prazo · ' + esperado.critico + ' fora do prazo' +
+            (esperado.semData > 0 ? ' · ' + esperado.semData + ' sem data' : '');
+        check('faixa: split de prazo', cards.resumoSplit === splitEsperado, `tela="${cards.resumoSplit}" api="${splitEsperado}"`);
+
         console.log('\n== pecas acompanham o filtro de busca ==');
         await page.evaluate((op) => {
             const busca = document.getElementById('table-search');
@@ -154,6 +196,7 @@ const lerCards = () => {
         check('busca por 1 OP: card Falta Pagar = 1', filtrado.faltaPagar === '1', filtrado.faltaPagar);
         check('busca por 1 OP: pecas = 4.321', filtrado.faltaPagarPecas === '4.321 peças', filtrado.faltaPagarPecas);
         check('busca por 1 OP: total tambem filtra', filtrado.total === '1' && filtrado.totalPecas === '4.321 peças', filtrado.total + ' / ' + filtrado.totalPecas);
+        check('busca por 1 OP em aberto: faixa zera o pago', filtrado.resumoPagas === '0' && filtrado.resumoPecasPagas === '0 peças' && filtrado.resumoPontualidade === '—', JSON.stringify({ p: filtrado.resumoPagas, q: filtrado.resumoPecasPagas, pct: filtrado.resumoPontualidade }));
 
         console.log('\n== pecas acompanham o filtro de setor ==');
         await page.evaluate(() => {
@@ -174,6 +217,7 @@ const lerCards = () => {
 
         const semSetor = await page.evaluate(lerCards);
         check('sem setor selecionado: zero ordens e "0 peças"', semSetor.total === '0' && semSetor.totalPecas === '0 peças' && semSetor.faltaPagarPecas === '0 peças', JSON.stringify(semSetor));
+        check('sem setor selecionado: faixa de pago zera', semSetor.resumoPagas === '0' && semSetor.resumoPecasPagas === '0 peças' && semSetor.resumoPontualidade === '—', JSON.stringify({ p: semSetor.resumoPagas, q: semSetor.resumoPecasPagas, pct: semSetor.resumoPontualidade }));
         check('cards voltam ao normal ao reativar os setores', antesSetor.total !== '0', 'antes=' + antesSetor.total);
         check('nenhum dialogo de erro', dialogos.length === 0, dialogos.join(' | '));
 
@@ -184,7 +228,8 @@ const lerCards = () => {
     } finally {
         await browser.close();
         const del = await fetch(`${BASE}/ordens/${id}`, { method: 'DELETE', headers: H });
-        console.log('cleanup: ordem ' + id + ' removida (status ' + del.status + ')');
+        const delPaga = await fetch(`${BASE}/ordens/${idPaga}`, { method: 'DELETE', headers: H });
+        console.log('cleanup: ordens ' + id + ' e ' + idPaga + ' removidas (status ' + del.status + '/' + delPaga.status + ')');
         process.exitCode = fail ? 1 : 0;
     }
 })();

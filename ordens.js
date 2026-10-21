@@ -320,12 +320,24 @@ function formatarPecas(quantidade) {
     return numero.toLocaleString('pt-BR') + (numero === 1 ? ' peça' : ' peças');
 }
 
+// Percentual de pagamentos dentro do prazo. A base sao as ordens que tem data
+// para classificar (prazo + atraso): ordem paga sem data nao pode ser julgada.
+// Sem nenhuma ordem classificavel nao ha percentual ("—").
+function formatarPontualidade(kpis) {
+    var classificaveis = kpis.pagasNoPrazo + kpis.pagasApos48h;
+    if (!classificaveis) return '—';
+    return Math.round((kpis.pagasNoPrazo / classificaveis) * 100) + '%';
+}
+
 // Contagem de ordens e soma de peças de cada card. Recebe a lista ja filtrada:
 // tanto as ordens quanto as pecas seguem os filtros da tela.
 function calcularKpis(lista) {
     var kpis = {
         total: lista.length, pecasTotal: 0,
         faltaPagar: 0, pecasFaltaPagar: 0,
+        // Total pago independe do prazo: inclui ordem Pago sem dia_analise ou
+        // sem data_abertura (essas ficam em pagasSemData, fora do split de 48h).
+        pagas: 0, pecasPagas: 0, pagasSemData: 0, pecasSemData: 0,
         pagasApos48h: 0, pecasApos48h: 0, // pagas depois de 48 horas (> 2 dias)
         pagasNoPrazo: 0, pecasNoPrazo: 0  // pagas dentro do prazo (<= 48 horas / <= 2 dias)
     };
@@ -341,6 +353,9 @@ function calcularKpis(lista) {
             kpis.faltaPagar++;
             kpis.pecasFaltaPagar += pecas;
         } else if (ordem.situacao === 'Pago' || ordem.dia_analise) {
+            kpis.pagas++;
+            kpis.pecasPagas += pecas;
+
             var diffDias = calcularDiferencaDias(ordem.data_abertura, ordem.dia_analise);
             if (diffDias !== null) {
                 if (diffDias <= 2) {
@@ -350,6 +365,9 @@ function calcularKpis(lista) {
                     kpis.pagasApos48h++;
                     kpis.pecasApos48h += pecas;
                 }
+            } else {
+                kpis.pagasSemData++;
+                kpis.pecasSemData += pecas;
             }
         }
     });
@@ -370,6 +388,28 @@ function atualizarKPIs(lista) {
     escreverKpi('kpi-falta-pagar', 'kpi-falta-pagar-pecas', kpis.faltaPagar, kpis.pecasFaltaPagar);
     escreverKpi('kpi-critico', 'kpi-critico-pecas', kpis.pagasApos48h, kpis.pecasApos48h);
     escreverKpi('kpi-prazo', 'kpi-prazo-pecas', kpis.pagasNoPrazo, kpis.pecasNoPrazo);
+    atualizarResumoPagamento(kpis);
+}
+
+// Faixa fina abaixo dos cards: total pago (soma dos dois cards de prazo e das
+// pagas sem data) e a pontualidade. Nao e um card: e uma linha de leitura rapida.
+function atualizarResumoPagamento(kpis) {
+    var elPagas = document.getElementById('resumo-pagas');
+    var elPecas = document.getElementById('resumo-pecas-pagas');
+    var elPontualidade = document.getElementById('resumo-pontualidade');
+    var elSplit = document.getElementById('resumo-split-prazo');
+
+    if (elPagas) elPagas.innerText = kpis.pagas;
+    if (elPecas) elPecas.innerText = formatarPecas(kpis.pecasPagas);
+    if (elPontualidade) elPontualidade.innerText = formatarPontualidade(kpis);
+
+    if (elSplit) {
+        var texto = kpis.pagasNoPrazo + ' no prazo · ' + kpis.pagasApos48h + ' fora do prazo';
+        // Só aparece quando existe ordem paga sem data para classificar: sem
+        // isso a soma de "no prazo + fora" nao fecharia com o total pago.
+        if (kpis.pagasSemData > 0) texto += ' · ' + kpis.pagasSemData + ' sem data';
+        elSplit.innerText = texto;
+    }
 }
 
 function getStatusBadge(situacao) {
