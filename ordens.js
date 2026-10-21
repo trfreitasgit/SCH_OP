@@ -10,6 +10,12 @@ var indiceAncoraSelecao = null; // indice da linha do ultimo clique, base do Shi
 var campoOrdenado = null;
 var ordemCrescente = true;
 var celulaEmEdicao = null;
+// Gravacoes concorrentes: sequencia monotonica por ordem. Duas celulas da mesma
+// ordem salvas em sequencia rapida podem ter respostas fora de ordem; so a
+// resposta da gravacao MAIS RECENTE pode mexer nas listas locais. Sem isso a
+// resposta antiga chegava por ultimo e "revertia" na tela o outro campo.
+var seqGravacoes = 0;
+var ultimaGravacaoPorId = {};
 // Texto do filtro rapido (campo #table-search). Faz parte do pipeline de filtros:
 // e aplicado SOBRE o resultado dos filtros avancados, nunca sobre o DOM.
 var termoBuscaRapida = '';
@@ -1770,15 +1776,64 @@ function iniciarEdicaoCelula(td) {
     editor.addEventListener('click', function(e) { e.stopPropagation(); });
     editor.addEventListener('dblclick', function(e) { e.stopPropagation(); });
 
+    // Enter salva. Selects (situacao/setor/prioridade/turno) tambem salvam ao
+    // trocar a opcao, como na planilha: antes, escolher e clicar em outra celula
+    // descartava a escolha sem aviso. O guarda evita PUT duplicado quando o
+    // Enter de um select dispara change junto.
+    var envioEmCurso = false;
+    function enviarEdicao() {
+        if (envioEmCurso) return;
+        envioEmCurso = true;
+        Promise.resolve(salvarEdicao(td, editor, id, coluna, valorAtual)).then(function(ok) {
+            // ok === false: o editor continua aberto (validacao falhou), libera novo envio.
+            if (ok === false) envioEmCurso = false;
+        });
+    }
+
     editor.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
-            salvarEdicao(td, editor, id, coluna, valorAtual);
+            enviarEdicao();
         } else if (e.key === 'Escape') {
             e.preventDefault();
             cancelarEdicao(td);
         }
     });
+
+    editor.addEventListener('change', function() {
+        if (editor.tagName === 'SELECT') enviarEdicao();
+    });
+}
+
+// Guarda a celula que o usuario abriu ENQUANTO uma gravacao anterior estava em
+// voo: o re-render reconstroi o tbody e, sem isso, o editor novo morria (com o
+// texto digitado) quando a resposta da outra celula chegava.
+function capturarEditorAberto(tdSalvo) {
+    var td = celulaEmEdicao;
+    if (!td || td === tdSalvo || !td.dataset.coluna) return null;
+    var tr = td.closest('tr');
+    if (!tr || !tr.dataset.id) return null;
+    var editor = td.querySelector('input, select');
+    return {
+        id: tr.dataset.id,
+        coluna: td.dataset.coluna,
+        valor: editor ? editor.value : null
+    };
+}
+
+// Reabre a celula pendente depois do re-render, restaurando o que foi digitado.
+// Se a linha saiu do filtro (ou da pagina), nao ha o que reabrir.
+function reabrirEditorAposRender(pendente) {
+    if (!pendente) return;
+    var tr = document.querySelector('#tabelaOrdens tbody tr[data-id="' + pendente.id + '"]');
+    if (!tr) return;
+    var td = tr.querySelector('[data-coluna="' + pendente.coluna + '"]');
+    if (!td) return;
+    iniciarEdicaoCelula(td);
+    var editor = td.querySelector('input, select');
+    if (editor && pendente.valor !== null && pendente.valor !== undefined) {
+        editor.value = pendente.valor;
+    }
 }
 
 function cancelarEdicao(td) {
@@ -1801,16 +1856,15 @@ async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
         var turnoEscolhido = String(novoValor || '').trim();
         if (turnoEscolhido === obterTurno(valorOriginal)) {
             cancelarEdicao(td);
-            return;
+            return true;
         }
         var comTurno = diaAnaliseComTurno(valorOriginal, turnoEscolhido);
         if (!comTurno) {
             alert('Erro: não foi possível aplicar o turno.');
             cancelarEdicao(td);
-            return;
+            return true;
         }
-        await salvarColuna(td, editor, id, 'dia_analise', comTurno);
-        return;
+        return await salvarColuna(td, editor, id, 'dia_analise', comTurno);
     }
 
     if (coluna === 'dia_analise') {
@@ -1820,7 +1874,7 @@ async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
         novoValor = soData ? (diaAnaliseComData(valorOriginal, soData) || soData) : null;
         if (mesmaDataAnalise(valorOriginal, novoValor)) {
             cancelarEdicao(td);
-            return;
+            return true;
         }
     }
 
@@ -1829,7 +1883,7 @@ async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
         if (isNaN(num) || num <= 0) {
             alert('Erro: O total de peças deve ser um número maior que zero.');
             editor.focus();
-            return;
+            return false;
         }
         novoValor = num;
     }
@@ -1839,7 +1893,7 @@ async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
         if (!novoValor) {
             alert('Erro: O número da OP não pode ficar em branco.');
             editor.focus();
-            return;
+            return false;
         }
     }
 
@@ -1848,7 +1902,7 @@ async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
         if (novoValor && (novoValor.length > 8 || !/^\d+$/.test(novoValor))) {
             alert('Erro: O material deve respeitar a regra de ser numérico com no máximo 8 dígitos.');
             editor.focus();
-            return;
+            return false;
         }
     }
 
@@ -1867,16 +1921,41 @@ async function salvarEdicao(td, editor, id, coluna, valorOriginal) {
             : (valorOriginal ? String(valorOriginal).substring(0, 10) : '') === (novoValor ? String(novoValor).substring(0, 10) : '');
     if (igual) {
         cancelarEdicao(td);
-        return;
+        return true;
     }
 
-    await salvarColuna(td, editor, id, coluna, novoValor);
+    return await salvarColuna(td, editor, id, coluna, novoValor);
+}
+
+// Só a resposta da gravacao mais recente de cada ordem pode mexer nas listas.
+// Pura de proposito: coberta por teste unitario (tests/ordens-edicao-rapida.test.js).
+function deveAplicarResposta(chaveId, seq) {
+    return ultimaGravacaoPorId[chaveId] === seq;
+}
+
+// Atualiza as tres listas em memoria SEM substituir a linha inteira: o snapshot
+// devolvido pelo servidor pode ser de uma gravacao anterior e trazer de volta o
+// valor de uma celula que outra gravacao acabou de alterar.
+function aplicarOrdemAtualizada(id, coluna, valor, ordemAtualizada) {
+    [ordensCarregadas, listaAtual, listaFiltrada].forEach(function(lista) {
+        var idx = lista.findIndex(function(o) { return String(o.id) === String(id); });
+        if (idx === -1) return;
+        var nova = Object.assign({}, lista[idx], ordemAtualizada || {});
+        nova[coluna] = valor;
+        lista[idx] = nova;
+    });
 }
 
 // Envia o PUT e sincroniza as tres listas em memoria. Extraido para o turno
 // poder salvar a coluna dia_analise reaproveitando o mesmo caminho.
+// Devolve true quando a edicao terminou e false quando o editor continua aberto
+// (validacao ou rede), para quem chamou liberar um novo envio.
 async function salvarColuna(td, editor, id, coluna, novoValor) {
     editor.disabled = true;
+
+    var chaveId = String(id);
+    var seq = ++seqGravacoes;
+    ultimaGravacaoPorId[chaveId] = seq;
 
     try {
         var resposta = await authFetch('/ordens/' + id, {
@@ -1889,45 +1968,34 @@ async function salvarColuna(td, editor, id, coluna, novoValor) {
         if (!resposta.ok) {
             alert('Erro ao salvar: ' + (dados.erro || 'Falha ao atualizar ordem.'));
             editor.disabled = false;
-            editor.focus();
-            return;
+            if (editor.isConnected) editor.focus();
+            return false;
         }
 
-        var ordemAtualizada = dados.ordem;
-        var idx = ordensCarregadas.findIndex(function(o) { return String(o.id) === String(id); });
-        if (idx !== -1) {
-            if (ordemAtualizada) {
-                ordensCarregadas[idx] = ordemAtualizada;
-            } else {
-                ordensCarregadas[idx][coluna] = novoValor;
-            }
+        // Resposta de uma gravacao antiga nao pode desfazer na tela a mais nova.
+        if (deveAplicarResposta(chaveId, seq)) {
+            aplicarOrdemAtualizada(id, coluna, novoValor, dados.ordem);
+
+            if (celulaEmEdicao === td) celulaEmEdicao = null;
+
+            // Celula que o usuario abriu enquanto ESTA gravacao estava em voo:
+            // precisa ser capturada agora, imediatamente antes do re-render.
+            var pendente = capturarEditorAberto(td);
+
+            // Reavalia os filtros: se a coluna editada participa deles (situacao,
+            // setor, prioridade, datas), a linha precisa entrar ou sair da lista.
+            // manterPagina=true evita jogar o usuario de volta para a pagina 1.
+            aplicarFiltros(true);
+            reabrirEditorAposRender(pendente);
+            mostrarToast('Ordem atualizada com sucesso!');
         }
 
-        var idxAtual = listaAtual.findIndex(function(o) { return String(o.id) === String(id); });
-        if (idxAtual !== -1) {
-            if (ordemAtualizada) {
-                listaAtual[idxAtual] = ordemAtualizada;
-            } else {
-                listaAtual[idxAtual][coluna] = novoValor;
-            }
-        }
-
-        celulaEmEdicao = null;
-        // Atualizar listaFiltrada se o item estiver nela (filtros ativos)
-        var idxFiltrada = listaFiltrada.findIndex(function(o) { return String(o.id) === String(id); });
-        if (idxFiltrada !== -1) {
-            if (ordemAtualizada) {
-                listaFiltrada[idxFiltrada] = ordemAtualizada;
-            } else {
-                listaFiltrada[idxFiltrada][coluna] = novoValor;
-            }
-        }
-        renderizarTabelaComPaginacao(listaFiltrada);
-        mostrarToast('Ordem atualizada com sucesso!');
+        return true;
     } catch (err) {
         alert('Erro de conexão ao salvar: ' + err.message);
         editor.disabled = false;
-        editor.focus();
+        if (editor.isConnected) editor.focus();
+        return false;
     }
 }
 
@@ -2394,12 +2462,17 @@ function passaBuscaRapida(ordem) {
 }
 
 // Pipeline unico: ordensCarregadas -> filtros avancados -> filtro rapido -> paginacao
-function aplicarFiltros() {
+// manterPagina=true e usado depois de salvar uma celula: os filtros precisam ser
+// reavaliados (a linha pode ter saido do filtro), mas o usuario nao deve ser
+// jogado de volta para a pagina 1. A pagina e limitada ao total em
+// renderizarTabelaComPaginacao, caso a lista tenha encolhido.
+function aplicarFiltros(manterPagina) {
+    var paginaAnterior = paginacao.paginaAtual;
     var filtradas = ordensCarregadas.filter(function(ordem) {
         return passaFiltrosAvancados(ordem) && passaBuscaRapida(ordem);
     });
 
-    paginacao.paginaAtual = 1;
+    paginacao.paginaAtual = manterPagina ? Math.max(1, paginaAnterior) : 1;
     // Definir totalItens ANTES de renderizar evita o fallback de lista fatiada
     // (a heuristica de protecao dentro de renderizarTabelaComPaginacao).
     paginacao.totalItens = filtradas.length;
