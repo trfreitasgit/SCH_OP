@@ -204,10 +204,10 @@ function diaFabrica(offsetDias) {
         visiveis = await linhas();
         e = await estadoFiltros();
         check('inputs preenchidos com hoje (SP)', e.analiseInicio === hoje && e.analiseFim === hoje, e.analiseInicio + '..' + e.analiseFim);
-        check('so as ordens de hoje (T1 e T2)', visiveis.length === 2 && visiveis.indexOf(ACT1) !== -1 && visiveis.indexOf(ACT2) !== -1, visiveis.join(' '));
+        check('pagas de hoje (T1 e T2) + pendente', visiveis.length === 3 && visiveis.indexOf(ACT1) !== -1 && visiveis.indexOf(ACT2) !== -1 && visiveis.indexOf(ACT4) !== -1, visiveis.join(' '));
         check('ordem de ontem (T3) sai', visiveis.indexOf(ACT3) === -1);
-        check('ordem sem analise sai', visiveis.indexOf(ACT4) === -1);
-        check('contadores do dia: 1/1/0/0', e.contadores.join(',') === '1,1,0,0', e.contadores.join(','));
+        check('pendente sem analise continua (a janela nao a descarta)', visiveis.indexOf(ACT4) !== -1);
+        check('contadores do dia: 1/1/0/1', e.contadores.join(',') === '1,1,0,1', e.contadores.join(','));
 
         console.log('\n== intervalo manual (ontem) + Aplicar ==');
         await page.evaluate((dia) => {
@@ -223,9 +223,23 @@ function diaFabrica(offsetDias) {
         visiveis = await linhas();
         e = await estadoFiltros();
         check('drawer fechou no Aplicar', await page.evaluate(() => document.getElementById('filter-drawer').classList.contains('hidden')));
-        check('so a ordem de ontem', visiveis.length === 1 && visiveis[0] === ACT3, visiveis.join(' '));
-        check('sem analise continua fora com intervalo ativo', visiveis.indexOf(ACT4) === -1);
-        check('KPI total = 1', e.kpiTotal === '1', e.kpiTotal);
+        check('paga de ontem + pendente', visiveis.length === 2 && visiveis.indexOf(ACT3) !== -1 && visiveis.indexOf(ACT4) !== -1, visiveis.join(' '));
+        check('KPI total = 2', e.kpiTotal === '2', e.kpiTotal);
+
+        // Rotina do PCP: trabalha com "Pago" desmarcado. Com a janela em Hoje, o
+        // que foi pago hoje continua na tela junto com as pendentes.
+        console.log('\n== rotina: "Pago" desmarcado + janela Hoje ==');
+        await abrirDrawer();
+        await clicar('.filter-status input[value="Pago"]');
+        await clicar('[data-preset-analise="today"]');
+        visiveis = await linhas();
+        e = await estadoFiltros();
+        check('pago de hoje continua (T1 e T2)', visiveis.indexOf(ACT1) !== -1 && visiveis.indexOf(ACT2) !== -1, visiveis.join(' '));
+        check('pendente continua', visiveis.indexOf(ACT4) !== -1, visiveis.join(' '));
+        check('pago de ontem sai (fora da janela)', visiveis.indexOf(ACT3) === -1);
+        check('3 ordens: pendente + pagas do dia', visiveis.length === 3, visiveis.join(' '));
+        check('KPI total = 3', e.kpiTotal === '3', e.kpiTotal);
+        await clicar('.filter-status input[value="Pago"]');
 
         console.log('\n== Reset ==');
         await abrirDrawer();

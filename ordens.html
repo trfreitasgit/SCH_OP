@@ -33,7 +33,7 @@
         <div class="header-right">
             <div class="badge-telemetry">
                 <span class="pulse-dot"></span>
-                <span>API Online :3000</span>
+                <span>API Online</span>
             </div>
             <div class="badge-telemetry" style="display: none;" id="badge-sap">
                 <span class="material-symbols-outlined" style="font-size: 14px; color: var(--primary);">sync_alt</span>
@@ -225,6 +225,13 @@
                         title="Gerar o PDF de sequenciamento de ordens dos setores escolhidos">
                         <span class="material-symbols-outlined" style="font-size: 18px;">print</span>
                         <span>Sequenciamento</span>
+                    </button>
+                    <!-- IMPORTAR E-MAIL DO PCP: abre o modal de colagem/analise do TSV.
+                         A analise e um dry-run; so "Aplicar Prioridades" grava no banco. -->
+                    <button id="btn-importar-pcp" class="btn-secondary-action btn-importar-pcp" type="button"
+                        title="Importar as prioridades enviadas por e-mail pelo PCP">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">mark_email_unread</span>
+                        <span>Importar PCP</span>
                     </button>
                     <!-- Toggle Filter Drawer -->
                     <button id="btn-toggle-filters" class="btn-secondary-action" type="button" title="Abrir/Fechar Filtros Laterais">
@@ -1017,6 +1024,93 @@
                 <button class="btn-primary-action" id="btn-confirmar-sequenciamento" type="button">
                     <span class="material-symbols-outlined" style="font-size: 18px;" id="btn-confirmar-sequenciamento-icone">search</span>
                     <span id="btn-confirmar-sequenciamento-label">Buscar Ordens</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================================================================
+         MODAL: IMPORTAR E-MAIL DO PCP
+         Fluxo em duas etapas: "Analisar" faz POST /ordens/importar-prioridades
+         com apply:false (dry-run) e mostra o relatorio; "Aplicar Prioridades"
+         repete com apply:true e so entao grava no banco. O botao de aplicar
+         nasce desabilitado e volta a desabilitar se o texto mudar.
+         A logica esta em ordens.js (regra do projeto: nenhum <script> inline novo).
+         ================================================================== -->
+    <div class="modal-overlay hidden" id="modal-importar-pcp" role="dialog" aria-modal="true"
+        aria-labelledby="titulo-importar-pcp" aria-describedby="subtitulo-importar-pcp">
+        <div class="modal-card modal-card-pcp" id="card-importar-pcp">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-accent-bar"></span>
+                    <div>
+                        <h2 class="modal-title" id="titulo-importar-pcp">Importar Prioridades do PCP</h2>
+                        <span class="modal-subtitle" id="subtitulo-importar-pcp">
+                            Cole abaixo a tabela do e-mail. A análise é uma simulação: nada é gravado até você aplicar.
+                        </span>
+                    </div>
+                </div>
+                <button class="btn-icon" id="btn-fechar-importar-pcp" type="button" title="Fechar" aria-label="Fechar">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <label class="pcp-label" for="pcp-conteudo">Tabela / e-mail do PCP</label>
+                <textarea class="pcp-textarea" id="pcp-conteudo" rows="10" spellcheck="false" autocomplete="off"
+                    aria-describedby="pcp-dica"
+                    placeholder="Cole aqui o conteúdo do e-mail (TSV)&#10;&#10;Ordem&#9;Prioridade&#10;12345&#9;02 - Exportação"></textarea>
+                <p class="pcp-dica" id="pcp-dica">
+                    Mantenha o cabeçalho da tabela (Ordem/OP e Prioridade). Os setores citados no e-mail têm a
+                    prioridade zerada antes da carga; OPs que não existem no banco são apenas listadas.
+                </p>
+
+                <div class="pcp-aviso hidden" id="pcp-aviso" role="alert">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">error</span>
+                    <span id="pcp-aviso-texto"></span>
+                </div>
+
+                <div class="pcp-previa hidden" id="pcp-previa" aria-live="polite">
+                    <div class="pcp-resumo">
+                        <div class="pcp-resumo-card">
+                            <span class="pcp-resumo-rotulo">Setores que serão limpos</span>
+                            <span class="pcp-resumo-valor pcp-resumo-setores" id="pcp-setores">—</span>
+                        </div>
+                        <div class="pcp-resumo-card">
+                            <span class="pcp-resumo-rotulo">OPs que serão atualizadas</span>
+                            <span class="pcp-resumo-valor pcp-resumo-destaque" id="pcp-total-atualizadas">0</span>
+                        </div>
+                        <div class="pcp-resumo-card">
+                            <span class="pcp-resumo-rotulo">OPs ausentes no banco</span>
+                            <span class="pcp-resumo-valor pcp-resumo-alerta" id="pcp-total-ausentes">0</span>
+                        </div>
+                    </div>
+
+                    <div class="pcp-ausentes hidden" id="pcp-ausentes-bloco">
+                        <span class="pcp-secao-titulo">
+                            <span class="material-symbols-outlined">report</span>
+                            OPs ausentes (não serão importadas)
+                        </span>
+                        <div class="pcp-ausentes-lista" id="pcp-lista-ausentes"></div>
+                    </div>
+
+                    <details class="pcp-detalhes">
+                        <summary>Ver relatório completo da análise</summary>
+                        <pre class="pcp-relatorio" id="pcp-relatorio-bruto"></pre>
+                    </details>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-secondary-action" id="btn-cancelar-importar-pcp" type="button">Cancelar</button>
+                <button class="btn-secondary-action pcp-btn-acao" id="btn-analisar-pcp" type="button"
+                    aria-label="Analisar o e-mail do PCP" title="Analisar o e-mail do PCP (simulação, não grava)">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">analytics</span>
+                    <span id="btn-analisar-pcp-label">Analisar</span>
+                </button>
+                <button class="btn-primary-action pcp-btn-acao" id="btn-aplicar-pcp" type="button" disabled>
+                    <span class="material-symbols-outlined" style="font-size: 18px;">publish</span>
+                    <span id="btn-aplicar-pcp-label">Aplicar Prioridades</span>
                 </button>
             </div>
         </div>

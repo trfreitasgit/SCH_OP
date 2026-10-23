@@ -225,12 +225,16 @@ test('so inicio (sem fim) e so fim (sem inicio)', () => {
     assert.strictEqual(mod.passaFiltrosAvancados(ordem({ dia_analise: '2026-10-16T00:00:00-03:00' })), false);
 });
 
-test('ordem sem analise e excluida com intervalo ativo e mantida sem intervalo', () => {
+test('ordem sem analise continua visivel com intervalo ativo (pendente nao tem data)', () => {
     comFiltros({ analiseInicio: '2026-10-15', analiseFim: '2026-10-21' });
-    assert.strictEqual(mod.passaFiltrosAvancados(ordem({ dia_analise: null })), false);
-
-    comFiltros();
     assert.strictEqual(mod.passaFiltrosAvancados(ordem({ dia_analise: null })), true);
+
+    // Quem quiser esconder pendente usa o checkbox "Sem turno (sem análise)".
+    comFiltros({
+        analiseInicio: '2026-10-15', analiseFim: '2026-10-21',
+        turnos: { T1: true, T2: true, T3: true, SEM: false }
+    });
+    assert.strictEqual(mod.passaFiltrosAvancados(ordem({ dia_analise: null })), false);
 });
 
 test('UTC 01:30Z cai no dia 15 em SP no filtro de intervalo', () => {
@@ -249,6 +253,70 @@ test('intervalo e turno se somam (cumulativos)', () => {
     assert.strictEqual(mod.passaFiltrosAvancados(ordem({ dia_analise: '2026-10-15T09:00:00-03:00' })), false);
     assert.strictEqual(mod.passaFiltrosAvancados(ordem({ dia_analise: '2026-10-15T15:00:00-03:00' })), true);
     assert.strictEqual(mod.passaFiltrosAvancados(ordem({ dia_analise: '2026-10-14T15:00:00-03:00' })), false);
+});
+
+// ---------------------------------------------------------------------------
+// passaFiltrosAvancados - pago dentro da janela de analise
+//
+// Rotina do PCP: "Pago" desmarcado para trabalhar. Com a janela ativa, o que
+// foi pago DENTRO da janela continua aparecendo (pendente + pago de hoje).
+// ---------------------------------------------------------------------------
+test('com janela ativa, "Pago" desmarcado ainda mostra as pagas do periodo', () => {
+    comFiltros({
+        analiseInicio: '2026-10-15', analiseFim: '2026-10-15',
+        status: { 'Falta Pagar': true, 'Pago': false, 'Encerrado': true }
+    });
+    // paga no dia da janela -> aparece mesmo com "Pago" desmarcado
+    assert.strictEqual(
+        mod.passaFiltrosAvancados(ordem({ situacao: 'Pago', dia_analise: '2026-10-15T09:00:00-03:00' })),
+        true
+    );
+    // paga fora da janela -> continua escondida
+    assert.strictEqual(
+        mod.passaFiltrosAvancados(ordem({ situacao: 'Pago', dia_analise: '2026-10-14T09:00:00-03:00' })),
+        false
+    );
+    // pendente (sem data) -> aparece
+    assert.strictEqual(
+        mod.passaFiltrosAvancados(ordem({ situacao: 'Falta Pagar', dia_analise: null })),
+        true
+    );
+});
+
+test('sem janela, "Pago" desmarcado esconde todas as pagas', () => {
+    comFiltros({ status: { 'Falta Pagar': true, 'Pago': false, 'Encerrado': true } });
+    assert.strictEqual(mod.passaFiltrosAvancados(ordem({ situacao: 'Pago', dia_analise: '2026-10-15T09:00:00-03:00' })), false);
+    assert.strictEqual(mod.passaFiltrosAvancados(ordem({ situacao: 'Pago', dia_analise: null })), false);
+});
+
+test('janela so com inicio: paga depois do inicio aparece com "Pago" desmarcado', () => {
+    comFiltros({
+        analiseInicio: '2026-10-15',
+        status: { 'Falta Pagar': true, 'Pago': false, 'Encerrado': true }
+    });
+    assert.strictEqual(mod.passaFiltrosAvancados(ordem({ situacao: 'Pago', dia_analise: '2026-11-02T09:00:00-03:00' })), true);
+    assert.strictEqual(mod.passaFiltrosAvancados(ordem({ situacao: 'Pago', dia_analise: '2026-10-14T23:59:00-03:00' })), false);
+});
+
+test('a excecao da janela vale so para Pago, nao para Encerrado', () => {
+    comFiltros({
+        analiseInicio: '2026-10-15', analiseFim: '2026-10-15',
+        status: { 'Falta Pagar': true, 'Pago': true, 'Encerrado': false }
+    });
+    assert.strictEqual(
+        mod.passaFiltrosAvancados(ordem({ situacao: 'Encerrado', dia_analise: '2026-10-15T09:00:00-03:00' })),
+        false
+    );
+});
+
+test('paga na janela com "Pago" desmarcado ainda obedece ao filtro de turno', () => {
+    comFiltros({
+        analiseInicio: '2026-10-15', analiseFim: '2026-10-15',
+        status: { 'Falta Pagar': true, 'Pago': false, 'Encerrado': true },
+        turnos: { T1: false, T2: true, T3: true, SEM: true }
+    });
+    assert.strictEqual(mod.passaFiltrosAvancados(ordem({ situacao: 'Pago', dia_analise: '2026-10-15T09:00:00-03:00' })), false);
+    assert.strictEqual(mod.passaFiltrosAvancados(ordem({ situacao: 'Pago', dia_analise: '2026-10-15T15:00:00-03:00' })), true);
 });
 
 // ---------------------------------------------------------------------------

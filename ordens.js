@@ -145,6 +145,56 @@ var filtrosAvancados = {
     turnos: { T1: true, T2: true, T3: true, SEM: true }
 };
 
+// ===== PREFERENCIA DE LINHAS POR PAGINA =====
+// O select "Exibir" (10/25/50/100) grava a escolha no localStorage para
+// sobreviver a recargas, cadastro em lote e importacao do PCP (que recarregam
+// a lista). Whitelist obrigatoria: o valor vem do storage do usuario.
+var ITENS_POR_PAGINA_PERMITIDOS = [10, 25, 50, 100];
+var CHAVE_ITENS_POR_PAGINA = 'ordens.itensPorPagina';
+
+function normalizarItensPorPagina(valor) {
+    var n = parseInt(valor, 10);
+    return ITENS_POR_PAGINA_PERMITIDOS.indexOf(n) === -1 ? 10 : n;
+}
+
+// storage e injetavel para teste; em producao usa o localStorage do navegador.
+function obterStorageItensPorPagina() {
+    try {
+        return window.localStorage;
+    } catch (e) {
+        // Referencia bloqueada (iframe/privado): a preferencia vale so na sessao.
+        return null;
+    }
+}
+
+function lerItensPorPagina(storage) {
+    try {
+        var alvo = storage === undefined ? obterStorageItensPorPagina() : storage;
+        if (!alvo) return 10;
+        return normalizarItensPorPagina(alvo.getItem(CHAVE_ITENS_POR_PAGINA));
+    } catch (e) {
+        return 10;
+    }
+}
+
+function salvarItensPorPagina(valor, storage) {
+    try {
+        var alvo = storage === undefined ? obterStorageItensPorPagina() : storage;
+        if (!alvo) return;
+        alvo.setItem(CHAVE_ITENS_POR_PAGINA, String(normalizarItensPorPagina(valor)));
+    } catch (e) {
+        // Storage cheio/bloqueado: nao pode derrubar a tela.
+    }
+}
+
+// Aplica a preferencia antes do primeiro render e deixa o <select> coerente
+// com o estado (sem isso o select dizia 25 enquanto a tabela mostrava 10).
+function inicializarItensPorPagina() {
+    paginacao.itensPorPagina = lerItensPorPagina();
+    var select = document.getElementById('pagination-size');
+    if (select) select.value = String(paginacao.itensPorPagina);
+}
+
 // Estado da paginação
 var paginacao = {
     paginaAtual: 1,
@@ -846,7 +896,8 @@ async function carregarOrdensPendentes() {
         }
 
         paginacao.paginaAtual = 1;
-        paginacao.itensPorPagina = 10;
+        // itensPorPagina NAO e resetado aqui: e preferencia do usuario
+        // (localStorage) e sobrevive a carga, cadastro em lote e importacao.
         // Reaplica o pipeline (filtros avancados + filtro rapido) em vez de renderizar
         // a lista crua: sem isso, recarregar descartava os filtros ativos.
         aplicarFiltros();
@@ -1637,6 +1688,392 @@ function confirmarSequenciamento() {
     });
 })();
 
+// ==========================================================================
+// IMPORTAR PRIORIDADES DO PCP (POST /ordens/importar-prioridades)
+// --------------------------------------------------------------------------
+// Fluxo: colar o TSV do e-mail -> "Analisar" (apply:false, dry-run) -> previa
+// do relatorio -> "Aplicar Prioridades" (apply:true). O backend responde sempre
+// { relatorio, erro } com o texto do script Python; aqui o relatorio e lido em
+// campos estruturados para a previa e o texto cru fica em <details>.
+// Regra: aplicar so libera depois de uma analise bem-sucedida do MESMO conteudo.
+// ==========================================================================
+var analisePcp = null;   // { conteudo, setores, atualizadas, ausentes, avisos, relatorio }
+var pcpSeq = 0;          // invalida respostas de requisicoes antigas
+var pcpAplicando = false; // trava o fechamento enquanto o banco esta sendo gravado
+
+function obterModalImportarPcp() {
+    return document.getElementById('modal-importar-pcp');
+}
+
+function mostrarAvisoPcp(mensagem) {
+    var aviso = document.getElementById('pcp-aviso');
+    var texto = document.getElementById('pcp-aviso-texto');
+    if (texto) texto.textContent = mensagem;
+    if (aviso) aviso.classList.remove('hidden');
+}
+
+function esconderAvisoPcp() {
+    var aviso = document.getElementById('pcp-aviso');
+    if (aviso) aviso.classList.add('hidden');
+}
+
+function desabilitarAplicarPcp() {
+    var botao = document.getElementById('btn-aplicar-pcp');
+    if (botao) botao.disabled = true;
+}
+
+function habilitarAplicarPcp() {
+    var botao = document.getElementById('btn-aplicar-pcp');
+    if (botao) botao.disabled = false;
+}
+
+function esconderPreviaPcp() {
+    var previa = document.getElementById('pcp-previa');
+    if (previa) previa.classList.add('hidden');
+}
+
+// Le { relatorio, erro } sem estourar quando a resposta nao e JSON.
+async function lerRespostaPcp(resposta) {
+    try {
+        var dados = await resposta.json();
+        if (dados && typeof dados === 'object') {
+            return {
+                relatorio: typeof dados.relatorio === 'string' ? dados.relatorio : '',
+                erro: typeof dados.erro === 'string' ? dados.erro : ''
+            };
+        }
+    } catch (erroLeitura) { /* resposta sem JSON (proxy, HTML, etc.) */ }
+    return { relatorio: '', erro: '' };
+}
+
+// Converte o relatorio em texto do script em dados para a previa. Tolera
+// mudancas de redacao: se um campo nao casar, a previa mostra zero e o texto
+// completo continua disponivel em <details>.
+function interpretarRelatorioPcp(relatorio) {
+    var dados = { setores: [], atualizadas: 0, ausentes: [], avisos: 0 };
+    var dentroAusentes = false;
+
+    String(relatorio || '').split(/\r?\n/).forEach(function (linha) {
+        var limpa = linha.trim();
+
+        var casamentoSetores = limpa.match(/^Setores a limpar[^:]*:\s*(.*)$/i);
+        if (casamentoSetores) {
+            var lista = casamentoSetores[1].trim();
+            dados.setores = (lista && lista !== '(nenhum)')
+                ? lista.split(',').map(function (setor) { return setor.trim(); }).filter(Boolean)
+                : [];
+            return;
+        }
+
+        var casamentoAtualizadas = limpa.match(/^OPs (?:a atualizar|atualizadas):\s*(\d+)/i);
+        if (casamentoAtualizadas) {
+            dados.atualizadas = Number(casamentoAtualizadas[1]) || 0;
+            return;
+        }
+
+        var casamentoAusentes = limpa.match(/^OPs ausentes no banco:\s*(\d+)/i);
+        if (casamentoAusentes) {
+            dados.ausentes = []; // zera contagem; as linhas detalhadas vem abaixo
+            dentroAusentes = true;
+            return;
+        }
+
+        // Qualquer cabecalho novo encerra o bloco de ausentes; sem isso as
+        // linhas de "Lotes ignorados" entrariam na lista de OPs ausentes.
+        if (dentroAusentes && limpa !== '' && !/^-\s+/.test(limpa)) {
+            dentroAusentes = false;
+        }
+
+        if (/^Avisos? de leitura:/i.test(limpa) || /^Aviso:/i.test(limpa)) {
+            dentroAusentes = false;
+            var casamentoAvisos = limpa.match(/^Avisos de leitura:\s*(\d+)/i);
+            if (casamentoAvisos) dados.avisos = Number(casamentoAvisos[1]) || 0;
+            return;
+        }
+
+        if (dentroAusentes && /^-\s+/.test(limpa)) {
+            var detalhe = limpa.replace(/^-\s+/, '');
+            var numero = detalhe.match(/^(\d+)/);
+            dados.ausentes.push({
+                numero_op: numero ? numero[1] : detalhe,
+                detalhe: detalhe
+            });
+        }
+    });
+
+    return dados;
+}
+
+function renderizarPreviaPcp(analise) {
+    var setores = document.getElementById('pcp-setores');
+    if (setores) {
+        setores.textContent = analise.setores.length ? analise.setores.join(' · ') : 'Nenhum setor';
+        setores.title = analise.setores.join(', ');
+    }
+
+    var atualizadas = document.getElementById('pcp-total-atualizadas');
+    if (atualizadas) atualizadas.textContent = String(analise.atualizadas);
+
+    var totalAusentes = document.getElementById('pcp-total-ausentes');
+    if (totalAusentes) {
+        totalAusentes.textContent = String(analise.ausentes.length);
+        totalAusentes.classList.toggle('tem-ausentes', analise.ausentes.length > 0);
+    }
+
+    var bloco = document.getElementById('pcp-ausentes-bloco');
+    var lista = document.getElementById('pcp-lista-ausentes');
+    if (lista) lista.innerHTML = '';
+
+    if (bloco && lista) {
+        bloco.classList.toggle('hidden', analise.ausentes.length === 0);
+
+        analise.ausentes.forEach(function (ausente) {
+            var item = document.createElement('span');
+            item.className = 'pcp-ausente-chip';
+            item.textContent = 'OP ' + ausente.numero_op;
+            item.title = ausente.detalhe;
+            lista.appendChild(item);
+        });
+    }
+
+    var bruto = document.getElementById('pcp-relatorio-bruto');
+    if (bruto) bruto.textContent = analise.relatorio;
+
+    var previa = document.getElementById('pcp-previa');
+    if (previa) previa.classList.remove('hidden');
+}
+
+function reiniciarEstadoPcp() {
+    pcpSeq++; // qualquer requisicao em voo vira obsoleta
+    pcpAplicando = false;
+    analisePcp = null;
+
+    var campo = document.getElementById('pcp-conteudo');
+    if (campo) {
+        campo.value = '';
+        campo.readOnly = false;
+    }
+
+    esconderAvisoPcp();
+    esconderPreviaPcp();
+    desabilitarAplicarPcp();
+
+    var bruto = document.getElementById('pcp-relatorio-bruto');
+    if (bruto) bruto.textContent = '';
+    var lista = document.getElementById('pcp-lista-ausentes');
+    if (lista) lista.innerHTML = '';
+
+    var botaoAnalisar = document.getElementById('btn-analisar-pcp');
+    var rotuloAnalisar = document.getElementById('btn-analisar-pcp-label');
+    if (botaoAnalisar) botaoAnalisar.disabled = false;
+    if (rotuloAnalisar) rotuloAnalisar.textContent = 'Analisar';
+
+    var rotuloAplicar = document.getElementById('btn-aplicar-pcp-label');
+    if (rotuloAplicar) rotuloAplicar.textContent = 'Aplicar Prioridades';
+}
+
+function abrirModalImportarPcp() {
+    var modal = obterModalImportarPcp();
+    if (!modal) return;
+
+    reiniciarEstadoPcp();
+    modal.classList.remove('hidden');
+
+    // Elemento oculto nao recebe foco: so depois de visivel.
+    var campo = document.getElementById('pcp-conteudo');
+    if (campo) campo.focus();
+}
+
+function fecharModalImportarPcp() {
+    var modal = obterModalImportarPcp();
+    if (!modal || modal.classList.contains('hidden')) return;
+
+    // Gravacao em andamento: fecha sozinho no sucesso; antes disso o usuario
+    // nao pode sair e ficar sem o retorno da operacao.
+    if (pcpAplicando) return;
+
+    modal.classList.add('hidden');
+    pcpSeq++; // descarta resposta pendente de analise
+
+    var botaoAbrir = document.getElementById('btn-importar-pcp');
+    if (botaoAbrir) botaoAbrir.focus();
+}
+
+// Texto do campo mudou: a previa anterior nao vale mais, aplicacao bloqueada.
+function invalidarAnalisePcp() {
+    pcpSeq++;
+    analisePcp = null;
+    esconderAvisoPcp();
+    esconderPreviaPcp();
+    desabilitarAplicarPcp();
+
+    // A analise em voo foi invalidada; o botao nao pode ficar preso em
+    // "Analisando..." se o usuario editou o texto durante a requisicao.
+    var botaoAnalisar = document.getElementById('btn-analisar-pcp');
+    var rotuloAnalisar = document.getElementById('btn-analisar-pcp-label');
+    if (botaoAnalisar) botaoAnalisar.disabled = false;
+    if (rotuloAnalisar) rotuloAnalisar.textContent = 'Analisar';
+}
+
+async function analisarPcp() {
+    var campo = document.getElementById('pcp-conteudo');
+    var conteudo = campo ? campo.value : '';
+
+    if (!conteudo.trim()) {
+        mostrarAvisoPcp('Cole o conteúdo do e-mail do PCP antes de analisar.');
+        if (campo) campo.focus();
+        return;
+    }
+
+    var botao = document.getElementById('btn-analisar-pcp');
+    var rotulo = document.getElementById('btn-analisar-pcp-label');
+    if (!botao) return;
+
+    var seq = ++pcpSeq;
+    esconderAvisoPcp();
+    esconderPreviaPcp();
+    desabilitarAplicarPcp();
+    botao.disabled = true;
+    if (rotulo) rotulo.textContent = 'Analisando...';
+
+    try {
+        var resposta = await authFetch('/ordens/importar-prioridades', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ conteudo: conteudo, apply: false })
+        });
+        var dados = await lerRespostaPcp(resposta);
+        if (seq !== pcpSeq) return; // modal fechado ou texto alterado
+
+        if (!resposta.ok) {
+            mostrarAvisoPcp(dados.erro || ('O servidor respondeu com status ' + resposta.status + '.'));
+            return;
+        }
+
+        if (!dados.relatorio) {
+            mostrarAvisoPcp(dados.erro || 'O servidor não retornou um relatório de análise.');
+            return;
+        }
+
+        var analise = interpretarRelatorioPcp(dados.relatorio);
+        analise.conteudo = conteudo;
+        analise.relatorio = dados.relatorio;
+        analisePcp = analise;
+
+        renderizarPreviaPcp(analise);
+        habilitarAplicarPcp();
+
+        // O script pode terminar bem e ainda assim avisar (linhas ignoradas).
+        if (dados.erro) mostrarAvisoPcp('Análise concluída com avisos: ' + dados.erro.trim());
+    } catch (erro) {
+        if (seq !== pcpSeq) return;
+        console.error('Erro ao analisar o e-mail do PCP:', erro);
+        mostrarAvisoPcp('Falha de conexão ao analisar o e-mail do PCP. Tente novamente.');
+    } finally {
+        if (seq === pcpSeq) {
+            botao.disabled = false;
+            if (rotulo) rotulo.textContent = 'Analisar';
+        }
+    }
+}
+
+async function aplicarPcp() {
+    var campo = document.getElementById('pcp-conteudo');
+    var conteudo = campo ? campo.value : '';
+
+    if (!analisePcp) {
+        mostrarAvisoPcp('Analise o conteúdo antes de aplicar as prioridades.');
+        return;
+    }
+
+    // Seguranca: aplicar usa EXATAMENTE o texto analisado.
+    if (conteudo !== analisePcp.conteudo) {
+        invalidarAnalisePcp();
+        mostrarAvisoPcp('O conteúdo mudou desde a análise. Clique em "Analisar" novamente.');
+        return;
+    }
+
+    var botao = document.getElementById('btn-aplicar-pcp');
+    var rotulo = document.getElementById('btn-aplicar-pcp-label');
+    var botaoAnalisar = document.getElementById('btn-analisar-pcp');
+    if (!botao) return;
+
+    var seq = ++pcpSeq;
+    esconderAvisoPcp();
+    pcpAplicando = true;
+    botao.disabled = true;
+    if (campo) campo.readOnly = true; // editar invalidaria a analise em uso
+    if (botaoAnalisar) botaoAnalisar.disabled = true;
+    if (rotulo) rotulo.textContent = 'Aplicando...';
+
+    try {
+        var resposta = await authFetch('/ordens/importar-prioridades', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ conteudo: conteudo, apply: true })
+        });
+        var dados = await lerRespostaPcp(resposta);
+        if (seq !== pcpSeq) return; // modal fechado durante a gravacao
+
+        if (!resposta.ok) {
+            mostrarAvisoPcp(dados.erro || ('O servidor respondeu com status ' + resposta.status + '.'));
+            habilitarAplicarPcp();
+            return;
+        }
+
+        var resultado = interpretarRelatorioPcp(dados.relatorio);
+        var mensagem = resultado.atualizadas + (resultado.atualizadas === 1
+            ? ' OP atualizada' : ' OPs atualizadas')
+            + (resultado.setores.length
+                ? ' em ' + resultado.setores.length + (resultado.setores.length === 1 ? ' setor.' : ' setores.')
+                : '.');
+
+        pcpAplicando = false;
+        fecharModalImportarPcp();
+        mostrarToast('Prioridades do PCP aplicadas!', mensagem);
+
+        // Recarrega a lista para refletir as prioridades gravadas.
+        await carregarOrdensPendentes();
+    } catch (erro) {
+        if (seq !== pcpSeq) return;
+        console.error('Erro ao aplicar as prioridades do PCP:', erro);
+        mostrarAvisoPcp('Falha de conexão ao aplicar as prioridades. Tente novamente.');
+        habilitarAplicarPcp();
+    } finally {
+        pcpAplicando = false;
+        if (campo) campo.readOnly = false;
+        if (botaoAnalisar && seq === pcpSeq) botaoAnalisar.disabled = false;
+        if (rotulo && seq === pcpSeq) rotulo.textContent = 'Aplicar Prioridades';
+        if (seq === pcpSeq && analisePcp) habilitarAplicarPcp();
+    }
+}
+
+(function configurarModalImportarPcp() {
+    var botaoAbrir = document.getElementById('btn-importar-pcp');
+    var modal = obterModalImportarPcp();
+    if (!botaoAbrir || !modal) return;
+
+    botaoAbrir.addEventListener('click', abrirModalImportarPcp);
+    document.getElementById('btn-fechar-importar-pcp').addEventListener('click', fecharModalImportarPcp);
+    document.getElementById('btn-cancelar-importar-pcp').addEventListener('click', fecharModalImportarPcp);
+    document.getElementById('btn-analisar-pcp').addEventListener('click', analisarPcp);
+    document.getElementById('btn-aplicar-pcp').addEventListener('click', aplicarPcp);
+
+    // Mudou o texto: previa e aplicacao ficam invalidas na hora.
+    document.getElementById('pcp-conteudo').addEventListener('input', invalidarAnalisePcp);
+
+    // Clique no fundo escuro fecha; clique dentro do card nao.
+    modal.addEventListener('click', function (evento) {
+        if (evento.target === modal) fecharModalImportarPcp();
+    });
+
+    document.addEventListener('keydown', function (evento) {
+        if (evento.key !== 'Escape') return;
+        if (modal.classList.contains('hidden')) return;
+        fecharModalImportarPcp();
+    });
+})();
+
 // ORDENAÇÃO POR CABEÇALHO
 document.querySelectorAll('[data-campo]').forEach(function (cabecalho) {
     cabecalho.addEventListener('click', function () {
@@ -2401,8 +2838,23 @@ function passaFiltrosAvancados(ordem) {
         if (!filtrosAvancados.prioridades['__NULL__']) return false;
     }
 
+    // Janela de analise (dia_analise = data do pagamento, no fuso da fabrica).
+    // Calculada uma unica vez: vale para o recorte do periodo e para a excecao
+    // do status "Pago" (ver comentario abaixo).
+    var janelaAtiva = !!(filtrosAvancados.analiseInicio || filtrosAvancados.analiseFim);
+    var diaAnalise = janelaAtiva ? dataAnaliseFabrica(ordem.dia_analise) : null;
+    var dentroDaJanela = janelaAtiva && diaAnalise !== null &&
+        (!filtrosAvancados.analiseInicio || diaAnalise >= filtrosAvancados.analiseInicio) &&
+        (!filtrosAvancados.analiseFim || diaAnalise <= filtrosAvancados.analiseFim);
+
     // Status: passa se NULL/undefined OU se está na lista
-    if (stat !== null && stat !== undefined && !filtrosAvancados.status[stat]) return false;
+    if (stat !== null && stat !== undefined && !filtrosAvancados.status[stat]) {
+        // Exceção da janela de análise (rotina do PCP): com um período ativo,
+        // "Pago" desmarcado esconde o que foi pago FORA da janela, mas mantém
+        // o que foi pago DENTRO dela. Assim a tela mostra pendentes + o que se
+        // pagou hoje sem precisar remarcar "Pago". Sem janela, esconde tudo.
+        if (!(stat === 'Pago' && dentroDaJanela)) return false;
+    }
     // Setor: passa se NULL/undefined OU se está na lista
     if (sect !== null && sect !== undefined && !filtrosAvancados.setores[sect]) return false;
 
@@ -2419,14 +2871,10 @@ function passaFiltrosAvancados(ordem) {
     var turno = obterTurno(ordem.dia_analise) || 'SEM';
     if (filtrosAvancados.turnos && filtrosAvancados.turnos[turno] === false) return false;
 
-    // Periodo de analise: recorte por DIA no fuso da fabrica. Com o filtro ativo,
-    // ordem sem dia_analise e excluida (padrao Excel: linha sem data nao entra no intervalo).
-    if (filtrosAvancados.analiseInicio || filtrosAvancados.analiseFim) {
-        var diaAnalise = dataAnaliseFabrica(ordem.dia_analise);
-        if (!diaAnalise) return false;
-        if (filtrosAvancados.analiseInicio && diaAnalise < filtrosAvancados.analiseInicio) return false;
-        if (filtrosAvancados.analiseFim && diaAnalise > filtrosAvancados.analiseFim) return false;
-    }
+    // Periodo de analise: recorta por DIA no fuso da fabrica, mas so quem TEM
+    // data. Ordem sem dia_analise nao e "de outro dia": e pendente, e quem
+    // decide se ela aparece e o checkbox "Sem turno (sem análise)" (acima).
+    if (janelaAtiva && diaAnalise !== null && !dentroDaJanela) return false;
     return true;
 }
 
@@ -2498,6 +2946,12 @@ if (inputBuscaRapida) {
 }
 
 function resetarFiltrosAvancados() {
+    // Reset limpa os filtros, mas NAO o setor: a rotina e trocar de setor,
+    // adicionar filtros e limpar sem sair do setor atual. Para voltar ao
+    // universo existe o botao "Todos". O snapshot e do estado real, venha ele
+    // da aba do topo ou dos checkboxes do drawer.
+    var setoresPreservados = Object.assign({}, filtrosAvancados.setores);
+
     filtrosAvancados.prioridades = {
         'Exportacao': true, 'KS': true, 'Marelli': true, 'MWM': true,
         'Pendencia Comercial': true,
@@ -2505,7 +2959,7 @@ function resetarFiltrosAvancados() {
         '__NULL__': true
     };
     filtrosAvancados.status = { 'Falta Pagar': true, 'Pago': true, 'Encerrado': true };
-    filtrosAvancados.setores = { 'Montagem': true, 'Subconjunto': true, 'Celula': true, 'BCM': true, 'Importada': true, 'Usinagem': true };
+    filtrosAvancados.setores = setoresPreservados;
     filtrosAvancados.dataInicio = null;
     filtrosAvancados.dataFim = null;
     filtrosAvancados.analiseInicio = null;
@@ -2519,8 +2973,9 @@ function resetarFiltrosAvancados() {
     document.querySelectorAll('.filter-status .filter-checkbox').forEach(function(cb) {
         cb.checked = true;
     });
+    // Setor NAO volta para "todos": o checkbox acompanha o snapshot preservado.
     document.querySelectorAll('.filter-sector .filter-checkbox').forEach(function(cb) {
-        cb.checked = true;
+        cb.checked = !!filtrosAvancados.setores[cb.value];
     });
     document.querySelectorAll('.filter-turno .filter-checkbox').forEach(function(cb) {
         cb.checked = true;
@@ -3029,6 +3484,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ===== PAGINATION =====
+    // Restaura "Exibir N" do localStorage antes de qualquer render.
+    inicializarItensPorPagina();
+
     var paginationSize = document.getElementById('pagination-size');
     var paginationFirst = document.getElementById('pagination-first');
     var paginationPrev = document.getElementById('pagination-prev');
@@ -3037,7 +3495,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (paginationSize) {
         paginationSize.addEventListener('change', function() {
-            paginacao.itensPorPagina = parseInt(this.value, 10);
+            paginacao.itensPorPagina = normalizarItensPorPagina(this.value);
+            this.value = String(paginacao.itensPorPagina);
+            salvarItensPorPagina(paginacao.itensPorPagina);
             paginacao.paginaAtual = 1;
             renderizarTabelaComPaginacao(listaFiltrada);
         });

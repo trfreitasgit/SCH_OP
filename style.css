@@ -886,6 +886,7 @@ html:not(.dark) .app-sidebar {
 .toolbar-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -896,6 +897,50 @@ html:not(.dark) .app-sidebar {
    no padding horizontal de cada variante (todos sao inline-flex centralizados). */
 .toolbar-actions > button {
   height: 40px;
+}
+
+/* Padrao unico das acoes da toolbar: mesma superficie e mesmo acento ciano de
+   #btnCopiar/.btn-sequenciamento. .btn-secondary-action nasceu com fundo mais
+   claro e texto --text-muted para modais e painel de lote; dentro da toolbar
+   isso fazia Exportar/Importar/Filtros parecerem "apagados" ao lado dos demais.
+   A regra e escopada: modais e painel de lote continuam com o visual original. */
+.toolbar-actions .btn-secondary-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-container);
+  color: var(--text-main);
+  border: 1px solid var(--outline-light);
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toolbar-actions .btn-secondary-action .material-symbols-outlined {
+  color: var(--tertiary);
+}
+
+.toolbar-actions .btn-secondary-action:hover {
+  background: var(--bg-container-high);
+  color: var(--tertiary);
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 0 12px var(--tertiary-glow);
+}
+
+.toolbar-actions .btn-secondary-action:focus-visible {
+  outline: 2px solid var(--tertiary);
+  outline-offset: 2px;
+}
+
+/* Exportar desabilita durante o download: sem isso ele parecia clicavel. */
+.toolbar-actions .btn-secondary-action:disabled {
+  opacity: 0.55;
+  cursor: wait;
+  filter: grayscale(0.2);
+  box-shadow: none;
+  transform: none;
 }
 
 /* MANDATORY BUTTON IDS: btnCopiar */
@@ -3834,4 +3879,311 @@ html:not(.dark) .seq-ordens-tabela tbody tr:nth-child(even) {
   .seq-ordens-tabela tbody td { padding-left: 8px; padding-right: 8px; }
   .seq-ordens-tabela .seq-obs { max-width: 150px; }
   .seq-contador { margin-left: 0; width: 100%; }
+}
+
+/* ==========================================================================
+   IMPORTAR PRIORIDADES DO PCP (botao da toolbar + modal)
+   ========================================================================== */
+
+/* Mesma altura dos demais botoes da toolbar (regra .toolbar-actions > button),
+   com o icone em destaque no azul terciario para diferenciar da exportacao. */
+.btn-importar-pcp {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border-color: var(--outline-light);
+  color: var(--text-main);
+}
+
+.btn-importar-pcp .material-symbols-outlined {
+  color: var(--tertiary);
+}
+
+.btn-importar-pcp:hover {
+  border-color: rgba(56, 189, 248, 0.35);
+  color: var(--tertiary);
+  box-shadow: 0 0 12px var(--tertiary-glow);
+}
+
+.modal-card-pcp {
+  max-width: 720px;
+}
+
+.pcp-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.pcp-textarea {
+  width: 100%;
+  min-height: 170px;
+  max-height: 38vh;
+  resize: vertical;
+  padding: 12px 14px;
+  background: var(--bg-container-low);
+  border: 1px solid var(--outline-light);
+  border-radius: 10px;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  tab-size: 4;
+  white-space: pre;
+  overflow: auto;
+  transition: var(--transition);
+}
+
+.pcp-textarea::placeholder {
+  color: var(--text-subtle);
+}
+
+.pcp-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+.pcp-dica {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+/* Aviso de erro/validacao: mesmo vocabulario visual de .seq-aviso. */
+.pcp-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--status-red-border);
+  border-radius: 8px;
+  background: var(--status-red-bg);
+  color: var(--status-red);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pcp-aviso.hidden {
+  display: none;
+}
+
+.pcp-previa {
+  margin-top: 16px;
+}
+
+.pcp-previa.hidden {
+  display: none;
+}
+
+.pcp-resumo {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pcp-resumo-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--outline-light);
+  border-radius: 10px;
+  background: var(--bg-container-low);
+}
+
+.pcp-resumo-rotulo {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.pcp-resumo-valor {
+  color: var(--text-main);
+  font-family: var(--font-headline);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.pcp-resumo-setores {
+  font-size: 13px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.pcp-resumo-destaque {
+  color: var(--primary);
+}
+
+/* Contagem de ausentes fica neutra em zero e ambar quando ha pendencia. */
+.pcp-resumo-alerta {
+  color: var(--text-muted);
+}
+
+.pcp-resumo-alerta.tem-ausentes {
+  color: var(--status-amber);
+}
+
+.pcp-ausentes {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--status-amber-border);
+  border-radius: 10px;
+  background: var(--status-amber-bg);
+}
+
+.pcp-ausentes.hidden {
+  display: none;
+}
+
+.pcp-secao-titulo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--status-amber);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pcp-secao-titulo .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.pcp-ausentes-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  max-height: 120px;
+  overflow: auto;
+}
+
+.pcp-ausente-chip {
+  padding: 3px 8px;
+  border: 1px solid var(--status-amber-border);
+  border-radius: 999px;
+  background: var(--bg-container);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pcp-detalhes {
+  margin-top: 12px;
+  border: 1px solid var(--outline-light);
+  border-radius: 10px;
+  background: var(--bg-container-low);
+  overflow: hidden;
+}
+
+.pcp-detalhes summary {
+  padding: 10px 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.pcp-detalhes summary::-webkit-details-marker {
+  display: none;
+}
+
+.pcp-detalhes summary:hover {
+  color: var(--text-main);
+}
+
+.pcp-detalhes[open] summary {
+  border-bottom: 1px solid var(--outline-light);
+  color: var(--text-main);
+}
+
+.pcp-relatorio {
+  margin: 0;
+  max-height: 200px;
+  overflow: auto;
+  padding: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.pcp-btn-acao {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#btn-aplicar-pcp:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+  transform: none;
+  box-shadow: none;
+}
+
+#btn-analisar-pcp:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+@media (max-width: 640px) {
+  .modal-card-pcp .modal-footer {
+    flex-wrap: wrap;
+  }
+
+  .modal-card-pcp .modal-footer > button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .pcp-resumo {
+    grid-template-columns: 1fr;
+  }
+
+  .pcp-textarea {
+    min-height: 140px;
+  }
+}
+
+/* A regra global <=1023px esconde o rotulo dos .btn-secondary-action; no modal
+   "Analisar" e uma acao decisiva e precisa continuar legivel. O rodape quebra
+   em duas linhas por causa do flex-wrap acima. */
+@media (max-width: 1023px) {
+  #btn-analisar-pcp span:last-child {
+    display: inline;
+  }
+}
+
+/* Telas baixas (notebooks 768p): reduz o textarea para o rodape continuar
+   alcancavel sem rolar o card inteiro. */
+@media (max-height: 800px) {
+  .pcp-textarea {
+    min-height: 120px;
+    max-height: 28vh;
+  }
+
+  .pcp-resumo-valor {
+    font-size: 17px;
+  }
 }
