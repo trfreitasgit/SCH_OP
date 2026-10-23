@@ -7,6 +7,7 @@ var cookieParser = require('cookie-parser');
 const path = require('path');
 var fs = require('fs');
 var exportacao = require('./lib/export-ordens');
+var importacao = require('./lib/importar-prioridades');
 var sequenciamento = require('./lib/sequenciamento-ordens');
 var cacheAutenticacao = require('./lib/auth-cache');
 
@@ -516,6 +517,52 @@ app.post('/ordens/export', requireAuth, async function (req, res) {
             console.error('Erro ao enviar o arquivo de exportação:', err.message);
         }
     });
+});
+
+// ==========================================================================
+// IMPORTACAO DE PRIORIDADES DO PCP (POST /ordens/importar-prioridades)
+// --------------------------------------------------------------------------
+// Body: { conteudo: "<TSV do e-mail>", apply: boolean }
+//
+// O TSV vai pelo stdin do script (sem arquivo temporario). Sem "apply" o
+// script so simula; com apply: true ele grava no Supabase. A resposta e sempre
+// { relatorio, erro } com a saida do script, para a tela mostrar o que
+// aconteceu.
+//
+// Status: 400 corpo invalido, 500 falha ao rodar o script (python fora do PATH,
+// timeout), 422 quando o script rodou e recusou a entrada (TSV sem tabela, banco
+// fora), 200 quando terminou bem.
+// ==========================================================================
+app.post('/ordens/importar-prioridades', requireAuth, async function (req, res) {
+    var entrada = importacao.validarEntrada(req.body);
+
+    if (!entrada) {
+        return res.status(400).json({
+            relatorio: '',
+            erro: 'Envie "conteudo" (o TSV do PCP em texto) e, opcionalmente, "apply" (true para gravar).'
+        });
+    }
+
+    if (!fs.existsSync(importacao.CAMINHO_SCRIPT)) {
+        return res.status(500).json({
+            relatorio: '',
+            erro: 'Script de importação não encontrado (scripts/importar_prioridades_pcp.py).'
+        });
+    }
+
+    var saida;
+    try {
+        saida = await importacao.executarImportacao(entrada);
+    } catch (falha) {
+        console.error('Erro no script de importação de prioridades:', falha.detalhe || falha.message);
+        return res.status(500).json({
+            relatorio: '',
+            erro: falha.detalhe || falha.message
+        });
+    }
+
+    var status = saida.codigo === 0 ? 200 : 422;
+    res.status(status).json({ relatorio: saida.relatorio, erro: saida.erro });
 });
 
 // ==========================================================================
